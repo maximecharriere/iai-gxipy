@@ -1,0 +1,3 @@
+build/*
+dist/*
+iai_gxipy.egg-info/*

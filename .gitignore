@@ -1,3 +1,4 @@
 build/*
 dist/*
 iai_gxipy.egg-info/*
+gxipy/__pycache_/*

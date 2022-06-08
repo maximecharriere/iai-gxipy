@@ -14,7 +14,7 @@ UNSIGNED_LONG_LONG_MAX = 0xFFFFFFFFFFFFFFFF
 # frame state code
 class GxFrameStatusList:
     SUCCESS = 0                 # Normal frame
-    INCOMPLETE = -1             # Residual frame
+    INCOMPLETE = -1             # Incomplete frame
     INVALID_IMAGE_INFO = -2     # invalid image info
 
     def __init__(self):
@@ -57,6 +57,14 @@ class GxIPConfigureModeList:
     LLA = 0x4                  # Enable the LLA mode to allocate the IP addresses
     STATIC_IP = 0x5            # Enable the static IP mode to configure the IP address
     DEFAULT = 0x7              # Enable the default mode to configure the IP address
+
+    def __init__(self):
+        pass
+
+
+class GxDeviceTemperatureSelectorEntry:
+    SENSOR = 1
+    MAINBOARD = 2
 
     def __init__(self):
         pass
@@ -137,10 +145,86 @@ class GxPixelFormatEntry:
         pass
 
 
+class GxTestPatternEntry:
+    OFF = 0
+    GRAY_FRAME_RAMP_MOVING = 1
+    SLANT_LINE_MOVING = 2
+    VERTICAL_LINE_MOVING = 3
+    HORIZONTAL_LINE_MOVING = 4
+    GREY_VERTICAL_RAMP = 5
+    SLANT_LINE = 6
+
+    def __init__(self):
+        pass
+
+
+class GxTestPatternGeneratorSelectorEntry:
+    SENSOR = 0          # Sensor test pattern
+    REGION0 = 1         # FPGA test pattern
+
+    def __init__(self):
+        pass
+
+
+class GxRegionSendModeEntry:
+    SINGLE_ROI = 0
+    MULTI_ROI = 1
+
+    def __init__(self):
+        pass
+
+
+class GxRegionSelectorEntry:
+    REGION0 = 0
+    REGION1 = 1
+    REGION2 = 2
+    REGION3 = 3
+    REGION4 = 4
+    REGION5 = 5
+    REGION6 = 6
+    REGION7 = 7
+
+    def __init__(self):
+        pass
+
+
+class GxBinningHorizontalModeEntry:
+    SUM = 0
+    AVERAGE = 1
+
+    def __init__(self):
+        pass
+
+
+class GxBinningVerticalModeEntry:
+    SUM = 0
+    AVERAGE = 1
+
+    def __init__(self):
+        pass
+
+
+class GxSensorShutterModeEntry:
+    GLOBAL = 0              # All pixels are exposed simultaneously with same exposure time
+    ROLLING = 1             # All pixels have the same exposure time, but exposure start at different time
+    GLOBALRESET = 2         # All pixels start exposure at same time, but exposure time are different
+
+    def __init__(self):
+        pass
+
+
 class GxAcquisitionModeEntry:
     SINGLE_FRAME = 0
     MULITI_FRAME = 1
     CONTINUOUS = 2
+
+    def __init__(self):
+        pass
+
+
+class GxTriggerActivationEntry:
+    FALLINGEDGE = 0
+    RISINGEDGE = 1
 
     def __init__(self):
         pass
@@ -152,15 +236,7 @@ class GxTriggerSourceEntry:
     LINE1 = 2
     LINE2 = 3
     LINE3 = 4
-
-
-    def __init__(self):
-        pass
-
-
-class GxTriggerActivationEntry:
-    FALLING_EDGE = 0
-    RISING_EDGE = 1
+    COUNTER2END = 5
 
     def __init__(self):
         pass
@@ -169,6 +245,45 @@ class GxTriggerActivationEntry:
 class GxExposureModeEntry:
     TIMED = 1
     TRIGGER_WIDTH = 2
+
+    def __init__(self):
+        pass
+
+
+class GxTriggerSelectorEntry:
+    FRAME_START = 1
+    FRAME_BURST_START = 2
+
+    def __init__(self):
+        pass
+
+
+class GxTransferControlModeEntry:
+    BASIC = 0
+    USER_CONTROLED = 1
+
+    def __init__(self):
+        pass
+
+
+class GxTransferOperationModeEntry:
+    MULTI_BLOCK = 0
+
+    def __init__(self):
+        pass
+
+
+class GxAcquisitionStatusSelectorEntry:
+    ACQUISITION_TRIGGER_WAIT = 0
+    FRAME_TRIGGER_WAIT = 1
+
+    def __init__(self):
+        pass
+
+
+class GxExposureTimeModeEntry:
+    ULTRASHORT = 0
+    STANDARD = 1
 
     def __init__(self):
         pass
@@ -186,6 +301,51 @@ class GxUserOutputSelectorEntry:
 class GxUserOutputModeEntry:
     STROBE = 0
     USER_DEFINED = 1
+
+    def __init__(self):
+        pass
+
+
+class GxLineSelectorEntry:
+    LINE0 = 0
+    LINE1 = 1
+    LINE2 = 2
+    LINE3 = 3
+    LINE4 = 4
+    LINE5 = 5
+    LINE6 = 6
+    LINE7 = 7
+    LINE8 = 8
+    LINE9 = 9
+    LINE10 = 10
+    LINE_STROBE = 11
+
+    def __init__(self):
+        pass
+
+
+class GxLineModeEntry:
+    INPUT = 0
+    OUTPUT = 1
+
+    def __init__(self):
+        pass
+
+
+class GxLineSourceEntry:
+    OFF = 0
+    STROBE = 1
+    USER_OUTPUT0 = 2
+    USER_OUTPUT1 = 3
+    USER_OUTPUT2 = 4
+    EXPOSURE_ACTIVE = 5
+    FRAME_TRIGGER_WAIT = 6
+    ACQUISITION_TRIGGER_WAIT = 7
+    TIMER1_ACTIVE = 8
+    USER_OUTPUT3 = 9
+    USER_OUTPUT4 = 10
+    USER_OUTPUT5 = 11
+    USER_OUTPUT6 = 12
 
     def __init__(self):
         pass
@@ -220,18 +380,30 @@ class GxBalanceRatioSelectorEntry:
         pass
 
 
-class GxAALightEnvironmentEntry:
-    NATURE_LIGHT = 0
-    AC50HZ = 1
-    AC60HZ = 2
+class GxGammaModeEntry:
+    SRGB = 0
+    USER = 1
 
     def __init__(self):
         pass
 
 
-class GxUserSetEntry:
-    DEFAULT = 0
-    USER_SET0 = 1
+class GxLightSourcePresetEntry:
+    OFF = 0
+    CUSTOM = 1
+    DAYLIGHT_6500K = 2
+    DAYLIGHT_5000K = 3
+    COOL_WHITE_FLUORESCENCE = 4
+    INCA = 5
+
+    def __init__(self):
+        pass
+
+
+class GxAALightEnvironmentEntry:
+    NATURE_LIGHT = 0
+    AC50HZ = 1
+    AC60HZ = 2
 
     def __init__(self):
         pass
@@ -250,53 +422,19 @@ class GxAWBLampHouseEntry:
         pass
 
 
-class GxTestPatternEntry:
-    OFF = 0
-    GRAY_FRAME_RAMP_MOVING = 1
-    SLANT_LINE_MOVING = 2
-    VERTICAL_LINE_MOVING = 3
-    SLANT_LINE = 6
+class GxUserDataFieldSelectorEntry:
+    FIELD_0 = 0
+    FIELD_1 = 1
+    FIELD_2 = 2
+    FIELD_3 = 3
 
     def __init__(self):
         pass
 
 
-class GxTriggerSelectorEntry:
-    FRAME_START = 1
-    FRAME_BURST_START = 2
-
-    def __init__(self):
-        pass
-
-
-class GxLineSelectorEntry:
-    LINE0 = 0
-    LINE1 = 1
-    LINE2 = 2
-    LINE3 = 3
-
-    def __init__(self):
-        pass
-
-
-class GxLineModeEntry:
-    INPUT = 0
-    OUTPUT = 1
-
-    def __init__(self):
-        pass
-
-
-class GxLineSourceEntry:
-    OFF = 0
-    STROBE = 1
-    USER_OUTPUT0 = 2
-    USER_OUTPUT1 = 3
-    USER_OUTPUT2 = 4
-    EXPOSURE_ACTIVE = 5
-    FRAME_TRIGGER_WAIT = 6
-    ACQUISITION_TRIGGER_WAIT = 7
-    TIMER1_ACTIVE = 8
+class GxUserSetEntry:
+    DEFAULT = 0
+    USER_SET0 = 1
 
     def __init__(self):
         pass
@@ -309,6 +447,9 @@ class GxEventSelectorEntry:
     FRAME_START_OVER_TRIGGER = 0x9002
     BLOCK_NOT_EMPTY = 0x9003
     INTERNAL_ERROR = 0x9004
+    FRAME_BURST_START_OVERTRIGGER = 0x9005
+    FRAME_START_WAIT = 0x9006
+    FRAME_BURST_START_WAIT = 0x9007
 
     def __init__(self):
         pass
@@ -321,105 +462,10 @@ class GxLutSelectorEntry:
         pass
 
 
-class GxTransferControlModeEntry:
-    BASIC = 0
-    USER_CONTROLED = 1
-
-    def __init__(self):
-        pass
-
-
-class GxTransferOperationModeEntry:
-    MULTI_BLOCK = 0
-
-    def __init__(self):
-        pass
-
-
-class GxTestPatternGeneratorSelectorEntry:
-    SENSOR = 0          # Sensor test pattern
-    REGION0 = 1         # FPGA test pattern
-
-    def __init__(self):
-        pass
-
-
 class GxChunkSelectorEntry:
     FRAME_ID = 1
     TIME_STAMP = 2
     COUNTER_VALUE = 3
-
-    def __init__(self):
-        pass
-
-class GxTimerSelectorEntry:
-    TIMER1 = 1         
-
-    def __init__(self):
-        pass
-
-class GxTimerTriggerSourceEntry:
-    EXPOSURE_START = 1
-
-    def __init__(self):
-        pass
-
-class GxCounterSelectorEntry:
-    COUNTER1 = 1
-
-    def __init__(self):
-        pass
-
-class GxCounterEventSourceEntry:
-    FRAME_START = 1
-
-    def __init__(self):
-        pass
-
-class GxCounterResetSourceEntry:
-    OFF = 0
-    SOFTWARE = 1
-    LINE0 = 2
-    LINE1 = 3
-    LINE2 = 4
-    LINE3 = 5
-
-    def __init__(self):
-        pass
-
-class GxCounterResetActivationEntry:
-    RISING_EDGE = 1
-
-    def __init__(self):
-        pass               
-
-class GxBinningHorizontalModeEntry:
-    SUM = 0
-    AVERAGE = 1
-
-    def __init__(self):
-        pass
-
-
-class GxBinningVerticalModeEntry:
-    SUM = 0
-    AVERAGE = 1
-
-    def __init__(self):
-        pass
-
-
-class GxAcquisitionStatusSelectorEntry:
-    ACQUISITION_TRIGGER_WAIT = 0
-    FRAME_TRIGGER_WAIT = 1
-
-    def __init__(self):
-        pass
-
-
-class GxGammaModeEntry:
-    SRGB = 0
-    USER = 1
 
     def __init__(self):
         pass
@@ -448,6 +494,109 @@ class GxColorTransformationValueSelectorEntry:
         pass
 
 
+class GxResetDeviceModeEntry:
+    RECONNECT = 1
+    RESET = 2
+
+    def __init__(self):
+        pass
+
+
+class GxTimerSelectorEntry:
+    TIMER1 = 1         
+
+    def __init__(self):
+        pass
+
+
+class GxTimerTriggerSourceEntry:
+    EXPOSURE_START = 1
+    LINE10 = 10
+    STROBE = 16
+
+    def __init__(self):
+        pass
+
+
+class GxCounterSelectorEntry:
+    COUNTER1 = 1
+    COUNTER2 = 2
+
+    def __init__(self):
+        pass
+
+
+class GxCounterEventSourceEntry:
+    FRAME_START = 1
+    FRAME_TRIGGER = 2
+    ACQUISITION_TRIGGER = 3
+    OFF = 4
+    SOFTWARE = 5
+    LINE0 = 6
+    LINE1 = 7
+    LINE2 = 8
+    LINE3 = 9
+
+    def __init__(self):
+        pass
+
+
+class GxCounterResetSourceEntry:
+    OFF = 0
+    SOFTWARE = 1
+    LINE0 = 2
+    LINE1 = 3
+    LINE2 = 4
+    LINE3 = 5
+    COUNTER2END = 6
+
+    def __init__(self):
+        pass
+
+
+class GxCounterResetActivationEntry:
+    RISINGEDGE = 1
+
+    def __init__(self):
+        pass
+
+
+class GxCounterTriggerSourceEntry:
+    OFF = 0
+    SOFTWARE = 1
+    LINE0 = 2
+    LINE1 = 3
+    LINE2 = 4
+    LINE3 = 5
+
+    def __init__(self):
+        pass
+
+
+class GxTimerTriggerActivationEntry:
+    RISINGEDGE = 0
+
+    def __init__(self):
+        pass
+
+
+class GxStopAcquisitionModeEntry:
+    GENERAL = 0
+    LIGHT = 1
+
+    def __init__(self):
+        pass
+
+
+class GxDSStreamBufferHandlingModeEntry:
+    OLDEST_FIRST = 1
+    OLDEST_FIRST_OVERWRITE = 2
+    NEWEST_ONLY = 3
+
+    def __init__(self):
+        pass
+
+
 class GxAutoEntry:
     OFF = 0
     CONTINUOUS = 1
@@ -460,28 +609,6 @@ class GxAutoEntry:
 class GxSwitchEntry:
     OFF = 0
     ON = 1
-
-    def __init__(self):
-        pass
-
-
-class GxRegionSendModeEntry:
-    SINGLE_ROI = 0
-    MULTI_ROI = 1
-
-    def __init__(self):
-        pass
-
-
-class GxRegionSelectorEntry:
-    REGION0 = 0
-    REGION1 = 1
-    REGION2 = 2
-    REGION3 = 3
-    REGION4 = 4
-    REGION5 = 5
-    REGION6 = 6
-    REGION7 = 7
 
     def __init__(self):
         pass
@@ -513,6 +640,15 @@ class DxValidBit:
 class DxImageMirrorMode:
     HORIZONTAL_MIRROR = 0                               # Horizontal mirror
     VERTICAL_MIRROR = 1                                 # Vertical mirror
+
+    def __init__(self):
+        pass
+
+
+# RGB channel order
+class DxRGBChannelOrder:
+    ORDER_RGB = 0
+    ORDER_BGR = 1
 
     def __init__(self):
         pass

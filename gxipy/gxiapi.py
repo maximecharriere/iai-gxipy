@@ -6,9 +6,11 @@ import numpy
 from gxipy.gxwrapper import *
 from gxipy.dxwrapper import *
 from gxipy.gxidef import *
+import types
 
 ERROR_SIZE = 1024
 PIXEL_BIT_MASK = 0x00ff0000
+COLOR_TRANSFORM_MATRIX_SIZE = 9  # 3*3
 
 if sys.version_info.major > 2:
     INT_TYPE = int
@@ -27,8 +29,6 @@ class DeviceManager(object):
     def __init__(self):
         self.__device_num = 0
         self.__device_info_list = []
-
-        
 
     def __del__(self):
         self.__class__.__instance_num -= 1
@@ -399,6 +399,18 @@ class DeviceManager(object):
         StatusProcessor.process(status, 'DeviceManager', 'open_device_by_mac')
 
         return GEVDevice(handle)
+
+    def gige_reset_device(self, mac_address, reset_device_mode):
+        """
+        :brief      Reconnection/Reset
+        :param      mac_address:        The MAC address of the device(str)
+        :param      reset_device_mode:  Reconnection mode, refer to GxResetDeviceModeEntry
+        :return:    None
+        """
+        _InterUtility.check_type(mac_address, str, "mac_address", "DeviceManager", "gige_reset_device")
+        _InterUtility.check_type(reset_device_mode, int, "reset_device_mode", "DeviceManager", "gige_reset_device")
+        status = gx_gige_reset_device(mac_address, reset_device_mode)
+        StatusProcessor.process(status, 'DeviceManager', 'gige_reset_device')
 
 
 class Feature:
@@ -932,6 +944,84 @@ class Buffer:
         return len(self.data_array)
 
 
+'''
+class DxColorImgProcess:
+    def __init__(self):
+        self.defective_pixel_correct = False  # bool
+        self.denoise = False  # bool
+        self.sharpness = False  # bool
+        self.accelerate = False  # bool
+        self.cc_param = None  # Buffer
+        self.sharp_factor = 0  # float
+        self.pro_lut = None  # Buffer
+        self.convert_type = DxBayerConvertType.NEIGHBOUR  # DxBayerConvertType
+        self.color_filter_layout = DxPixelColorFilter.RG  # DxPixelColorFilter
+        self.flip = False  # bool
+
+    def check_param_type(self):
+        """
+        :chief  check param type
+        """
+        _InterUtility.check_type(self.defective_pixel_correct, bool, "defective_pixel_correct",
+                    "DxColorImgProcess", "check_param_type")
+
+        _InterUtility.check_type(self.denoise, bool, "denoise",
+                    "DxColorImgProcess", "check_param_type")
+
+        _InterUtility.check_type(self.sharpness, bool, "sharpness",
+                    "DxColorImgProcess", "check_param_type")
+
+        _InterUtility.check_type(self.accelerate, bool, "accelerate",
+                    "DxColorImgProcess", "check_param_type")
+
+        _InterUtility.check_type(self.cc_param, (Buffer, type(None)), "cc_param",
+                    "DxColorImgProcess", "check_param_type")
+
+        _InterUtility.check_type(self.sharp_factor, (float, INT_TYPE), "sharp_factor",
+                    "DxColorImgProcess", "check_param_type")
+
+        _InterUtility.check_type(self.pro_lut, (Buffer, type(None)), "pro_lut",
+                    "DxColorImgProcess", "check_param_type")
+
+        _InterUtility.check_type(self.convert_type, INT_TYPE, "convert_type",
+                    "DxColorImgProcess", "check_param_type")
+
+        _InterUtility.check_type(self.color_filter_layout, INT_TYPE, "color_filter_layout",
+                    "DxColorImgProcess", "check_param_type")
+
+        _InterUtility.check_type(self.flip, bool, "flip",
+                    "DxColorImgProcess", "check_param_type")
+
+
+class DxMonoImgProcess:
+    def __init__(self):
+        self.defective_pixel_correct = False  # bool
+        self.sharpness = False  # bool
+        self.accelerate = False  # bool
+        self.sharp_factor = 0  # float
+        self.pro_lut = None  # Buffer
+
+    def check_param_type(self):
+        """
+        :chief  check param type
+        """
+        _InterUtility.check_type(self.defective_pixel_correct, bool, "defective_pixel_correct",
+                    "DxMonoImgProcess", "check_param_type")
+
+        _InterUtility.check_type(self.sharpness, bool, "sharpness",
+                    "DxMonoImgProcess", "check_param_type")
+
+        _InterUtility.check_type(self.accelerate, bool, "accelerate",
+                    "DxMonoImgProcess", "check_param_type")
+
+        _InterUtility.check_type(self.sharp_factor, (float, INT_TYPE), "sharp_factor",
+                    "DxMonoImgProcess", "check_param_type")
+
+        _InterUtility.check_type(self.pro_lut, (Buffer, type(None)), "pro_lut",
+                    "DxMonoImgProcess", "check_param_type")
+'''
+
+
 class Device:
     """
     The Camera class mainly encapsulates some common operations and function attributes,
@@ -940,9 +1030,14 @@ class Device:
     such as SetInt, SetFloat, etc. Can not open to the user, so that when the subsequent addition of features,
     Python interface does not upgrade, or only the definition of the control code can support new features
     """
+
     def __init__(self, handle):
         self.__dev_handle = handle
         self.data_stream = []
+
+        self.__c_offline_callback = OFF_LINE_CALL(self.__on_device_offline_callback)
+        self.__py_offline_callback = None
+        self.__offline_callback_handle = None
 
         # ---------------Device Information Section--------------------------
         self.DeviceVendorName = StringFeature(self.__dev_handle, GxFeatureID.STRING_DEVICE_VENDOR_NAME)
@@ -962,6 +1057,9 @@ class Device:
         self.TimestampReset = CommandFeature(self.__dev_handle, GxFeatureID.COMMAND_TIMESTAMP_RESET)
         self.TimestampLatchReset = CommandFeature(self.__dev_handle, GxFeatureID.COMMAND_TIMESTAMP_LATCH_RESET)
         self.TimestampLatchValue = IntFeature(self.__dev_handle, GxFeatureID.INT_TIMESTAMP_LATCH_VALUE)
+        self.DevicePHYVersion = StringFeature(self.__dev_handle, GxFeatureID.STRING_DEVICE_PHY_VERSION)
+        self.DeviceTemperatureSelector = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_DEVICE_TEMPERATURE_SELECTOR)
+        self.DeviceTemperature = FloatFeature(self.__dev_handle, GxFeatureID.FLOAT_DEVICE_TEMPERATURE)
 
         # ---------------ImageFormat Section--------------------------------
         self.SensorWidth = IntFeature(self.__dev_handle, GxFeatureID.INT_SENSOR_WIDTH)
@@ -990,6 +1088,7 @@ class Device:
         self.CenterHeight = IntFeature(self.__dev_handle, GxFeatureID.INT_CENTER_HEIGHT)
         self.BinningHorizontalMode = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_BINNING_HORIZONTAL_MODE)
         self.BinningVerticalMode = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_BINNING_VERTICAL_MODE)
+        self.SensorShutterMode = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_SENSOR_SHUTTER_MODE)
 
         # ---------------TransportLayer Section-------------------------------
         self.PayloadSize = IntFeature(self.__dev_handle, GxFeatureID.INT_PAYLOAD_SIZE)
@@ -1013,7 +1112,7 @@ class Device:
         self.TransferOperationMode = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_TRANSFER_OPERATION_MODE)
         self.TransferStart = CommandFeature(self.__dev_handle, GxFeatureID.COMMAND_TRANSFER_START)
         self.TransferBlockCount = IntFeature(self.__dev_handle, GxFeatureID.INT_TRANSFER_BLOCK_COUNT)
-        self.FrameBufferOverwriteActive = BoolFeature(self.__dev_handle, GxFeatureID.BOOL_FRAME_STORE_COVER_ACTIVE)
+        self.FrameBufferOverwriteActive = BoolFeature(self.__dev_handle, GxFeatureID.BOOL_FRAMESTORE_COVER_ACTIVE)
         self.AcquisitionFrameRateMode = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_ACQUISITION_FRAME_RATE_MODE)
         self.AcquisitionFrameRate = FloatFeature(self.__dev_handle, GxFeatureID.FLOAT_ACQUISITION_FRAME_RATE)
         self.CurrentAcquisitionFrameRate = FloatFeature(self.__dev_handle, GxFeatureID.FLOAT_CURRENT_ACQUISITION_FRAME_RATE)
@@ -1022,6 +1121,8 @@ class Device:
         self.AcquisitionStatusSelector = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_ACQUISITION_STATUS_SELECTOR)
         self.AcquisitionStatus = BoolFeature(self.__dev_handle, GxFeatureID.BOOL_ACQUISITION_STATUS)
         self.ExposureDelay = FloatFeature(self.__dev_handle, GxFeatureID.FLOAT_EXPOSURE_DELAY)
+        self.ExposureOverlapTimeMax = FloatFeature(self.__dev_handle, GxFeatureID.FLOAT_EXPOSURE_OVERLAP_TIME_MAX)
+        self.ExposureTimeMode = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_EXPOSURE_TIME_MODE)
 
         # ----------------DigitalIO Section----------------------------------
         self.UserOutputSelector = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_USER_OUTPUT_SELECTOR)
@@ -1032,6 +1133,7 @@ class Device:
         self.LineSource = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_LINE_SOURCE)
         self.LineStatus = BoolFeature(self.__dev_handle, GxFeatureID.BOOL_LINE_STATUS)
         self.LineStatusAll = IntFeature(self.__dev_handle, GxFeatureID.INT_LINE_STATUS_ALL)
+        self.PulseWidth = FloatFeature(self.__dev_handle, GxFeatureID.FLOAT_PULSE_WIDTH)
 
         # ----------------AnalogControls Section----------------------------
         self.GainAuto = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_GAIN_AUTO)
@@ -1048,6 +1150,7 @@ class Device:
         self.GammaMode = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_GAMMA_MODE)
         self.Gamma = FloatFeature(self.__dev_handle, GxFeatureID.FLOAT_GAMMA)
         self.DigitalShift = IntFeature(self.__dev_handle, GxFeatureID.INT_DIGITAL_SHIFT)
+        self.LightSourcePreset = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_LIGHT_SOURCE_PRESET)
 
         # ---------------CustomFeature Section------------------------------
         self.ExpectedGrayValue = IntFeature(self.__dev_handle, GxFeatureID.INT_GRAY_VALUE)
@@ -1069,32 +1172,71 @@ class Device:
         self.AWBROIHeight = IntFeature(self.__dev_handle, GxFeatureID.INT_AWBROI_HEIGHT)
         self.SharpnessMode = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_SHARPNESS_MODE)
         self.Sharpness = FloatFeature(self.__dev_handle, GxFeatureID.FLOAT_SHARPNESS)
+        self.DataFieldSelector = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_USER_DATA_FIELD_SELECTOR)
+        self.DataFieldValue = BufferFeature(self.__dev_handle, GxFeatureID.BUFFER_USER_DATA_FIELD_VALUE)
+        self.FlatFieldCorrection = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_FLAT_FIELD_CORRECTION)
+        self.NoiseReductionMode = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_NOISE_REDUCTION_MODE)
+        self.NoiseReduction = FloatFeature(self.__dev_handle, GxFeatureID.FLOAT_NOISE_REDUCTION)
+        self.FFCLoad = BufferFeature(self.__dev_handle, GxFeatureID.BUFFER_FFCLOAD)
+        self.FFCSave = BufferFeature(self.__dev_handle, GxFeatureID.BUFFER_FFCSAVE)
+        self.StaticDefectCorrection = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_STATIC_DEFECT_CORRECTION)
 
-        # ---------------UserSetControl Section-------------------------
+        # ---------------UserSetControl Section-------------------------------
         self.UserSetSelector = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_USER_SET_SELECTOR)
         self.UserSetLoad = CommandFeature(self.__dev_handle, GxFeatureID.COMMAND_USER_SET_LOAD)
         self.UserSetSave = CommandFeature(self.__dev_handle, GxFeatureID.COMMAND_USER_SET_SAVE)
         self.UserSetDefault = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_USER_SET_DEFAULT)
 
-        # ---------------LUT Section-------------------------------
+        # ---------------Event Section----------------------------------------
+        self.EventSelector = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_EVENT_SELECTOR)
+        self.EventNotification = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_EVENT_NOTIFICATION)
+        self.EventExposureEnd = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_EXPOSURE_END)
+        self.EventExposureEndTimestamp = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_EXPOSURE_END_TIMESTAMP)
+        self.EventExposureEndFrameID = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_EXPOSURE_END_FRAME_ID)
+        self.EventBlockDiscard = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_BLOCK_DISCARD)
+        self.EventBlockDiscardTimestamp = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_BLOCK_DISCARD_TIMESTAMP)
+        self.EventOverrun = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_OVERRUN)
+        self.EventOverrunTimestamp = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_OVERRUN_TIMESTAMP)
+        self.EventFrameStartOvertrigger = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_FRAME_START_OVER_TRIGGER)
+        self.EventFrameStartOvertriggerTimestamp = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_FRAME_START_OVER_TRIGGER_TIMESTAMP)
+        self.EventBlockNotEmpty = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_BLOCK_NOT_EMPTY)
+        self.EventBlockNotEmptyTimestamp = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_BLOCK_NOT_EMPTY_TIMESTAMP)
+        self.EventInternalError = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_INTERNAL_ERROR)
+        self.EventInternalErrorTimestamp = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_INTERNAL_ERROR_TIMESTAMP)
+        self.EventFrameBurstStartOvertrigger = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_FRAMEBURSTSTART_OVERTRIGGER)
+        self.EventFrameBurstStartOvertriggerFrameID = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_FRAMEBURSTSTART_OVERTRIGGER_FRAMEID)
+        self.EventFrameBurstStartOvertriggerTimestamp = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_FRAMEBURSTSTART_OVERTRIGGER_TIMESTAMP)
+        self.EventFrameStartWait = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_FRAMESTART_WAIT)
+        self.EventFrameStartWaitTimestamp = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_FRAMESTART_WAIT_TIMESTAMP)
+        self.EventFrameBurstStartWait = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_FRAMEBURSTSTART_WAIT)
+        self.EventFrameBurstStartWaitTimestamp = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_FRAMEBURSTSTART_WAIT_TIMESTAMP)
+        self.EventBlockDiscardFrameID = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_BLOCK_DISCARD_FRAMEID)
+        self.EventFrameStartOvertriggerFrameID = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_FRAMESTART_OVERTRIGGER_FRAMEID)
+        self.EventBlockNotEmptyFrameID = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_BLOCK_NOT_EMPTY_FRAMEID)
+        self.EventFrameStartWaitFrameID = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_FRAMESTART_WAIT_FRAMEID)
+        self.EventFrameBurstStartWaitFrameID = IntFeature(self.__dev_handle, GxFeatureID.INT_EVENT_FRAMEBURSTSTART_WAIT_FRAMEID)
+
+        # ---------------LUT Section------------------------------------------
         self.LUTSelector = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_LUT_SELECTOR)
         self.LUTValueAll = BufferFeature(self.__dev_handle, GxFeatureID.BUFFER_LUT_VALUE_ALL)
         self.LUTEnable = BoolFeature(self.__dev_handle, GxFeatureID.BOOL_LUT_ENABLE)
         self.LUTIndex = IntFeature(self.__dev_handle, GxFeatureID.INT_LUT_INDEX)
         self.LUTValue = IntFeature(self.__dev_handle, GxFeatureID.INT_LUT_VALUE)
 
-        # ---------------Color Transformation Control--------------
-        self.ColorTransformationMode = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_COLOR_TRANSFORMATION_MODE)
-        self.ColorTransformationEnable = BoolFeature(self.__dev_handle, GxFeatureID.BOOL_COLOR_TRANSFORMATION_ENABLE)
-        self.ColorTransformationValueSelector = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_COLOR_TRANSFORMATION_VALUE_SELECTOR)
-        self.ColorTransformationValue = FloatFeature(self.__dev_handle, GxFeatureID.FLOAT_COLOR_TRANSFORMATION_VALUE)
-
-        # ---------------ChunkData Section-------------------------
+        # ---------------ChunkData Section------------------------------------
         self.ChunkModeActive = BoolFeature(self.__dev_handle, GxFeatureID.BOOL_CHUNK_MODE_ACTIVE)
         self.ChunkSelector = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_CHUNK_SELECTOR)
         self.ChunkEnable = BoolFeature(self.__dev_handle, GxFeatureID.BOOL_CHUNK_ENABLE)
 
-        # ---------------CounterAndTimerControl Section-------------------------
+        # ---------------Color Transformation Control-------------------------
+        self.ColorTransformationMode = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_COLOR_TRANSFORMATION_MODE)
+        self.ColorTransformationEnable = BoolFeature(self.__dev_handle, GxFeatureID.BOOL_COLOR_TRANSFORMATION_ENABLE)
+        self.ColorTransformationValueSelector = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_COLOR_TRANSFORMATION_VALUE_SELECTOR)
+        self.ColorTransformationValue = FloatFeature(self.__dev_handle, GxFeatureID.FLOAT_COLOR_TRANSFORMATION_VALUE)
+        self.SaturationMode = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_SATURATION_MODE)
+        self.Saturation = IntFeature(self.__dev_handle, GxFeatureID.INT_SATURATION)
+
+        # ---------------CounterAndTimerControl Section-----------------------
         self.TimerSelector = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_TIMER_SELECTOR)
         self.TimerDuration = FloatFeature(self.__dev_handle, GxFeatureID.FLOAT_TIMER_DURATION)
         self.TimerDelay = FloatFeature(self.__dev_handle, GxFeatureID.FLOAT_TIMER_DELAY)
@@ -1104,6 +1246,12 @@ class Device:
         self.CounterResetSource = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_COUNTER_RESET_SOURCE)
         self.CounterResetActivation = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_COUNTER_RESET_ACTIVATION)
         self.CounterReset = CommandFeature(self.__dev_handle, GxFeatureID.COMMAND_COUNTER_RESET)
+        self.CounterTriggerSource = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_COUNTER_TRIGGER_SOURCE)
+        self.CounterDuration = IntFeature(self.__dev_handle, GxFeatureID.INT_COUNTER_DURATION)
+        self.TimerTriggerActivation = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_TIMER_TRIGGER_ACTIVATION)
+
+        # ---------------RemoveParameterLimitControl Section------------------
+        self.RemoveParameterLimit = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_REMOVE_PARAMETER_LIMIT)
 
     def stream_on(self):
         """
@@ -1166,6 +1314,43 @@ class Device:
         status = gx_close_device(self.__dev_handle)
         StatusProcessor.process(status, 'Device', 'close_device')
         self.__dev_handle = None
+        self.__py_offline_callback = None
+        self.__offline_callback_handle = None
+
+    def register_device_offline_callback(self, callback_func):
+        """
+        :brief      Register the device offline event callback function.
+        :param      callback_func:  callback function
+        :return:    none
+        """
+        if not isinstance(callback_func, types.FunctionType):
+            raise ParameterTypeError("Device.register_device_offline_callback: "
+                                     "Expected callback type is function not %s" % type(callback_func))
+
+        status, offline_callback_handle = gx_register_device_offline_callback\
+            (self.__dev_handle, self.__c_offline_callback)
+        StatusProcessor.process(status, 'Device', 'register_device_offline_callback')
+        
+        # callback will not recorded when register callback failed.
+        self.__py_offline_callback = callback_func
+        self.__offline_callback_handle = offline_callback_handle
+
+    def unregister_device_offline_callback(self):
+        """
+        :brief      Unregister the device offline event callback function.
+        :return:    none
+        """
+        status = gx_unregister_device_offline_callback(self.__dev_handle, self.__offline_callback_handle)
+        StatusProcessor.process(status, 'Device', 'unregister_device_offline_callback')
+        self.__py_offline_callback = None
+        self.__offline_callback_handle = None
+
+    def __on_device_offline_callback(self, c_user_param):
+        """
+        :brief      Device offline event callback function with an unused c_void_p.
+        :return:    none
+        """
+        self.__py_offline_callback()
 
     def get_stream_channel_num(self):
         """
@@ -1173,6 +1358,40 @@ class Device:
         :return:    the number of stream channels
         """
         return len(self.data_stream)
+
+    def read_remote_device_port(self, address, buff, size):
+        """
+        :brief      Read Remote Regesiter
+        :param      address:    The address of the register to be read(type: int)
+        :param      bytearray:  The data to be read from register(type: buffer)
+        :return:    Read Remote Regesiter Data Buff
+        """
+        if not isinstance(address, INT_TYPE):
+            raise ParameterTypeError("Device.read_remote_device_port: "
+                                     "Expected address type is int, not %s" % type(address))
+
+        if not isinstance(size, INT_TYPE):
+            raise ParameterTypeError("Device.read_remote_device_port: "
+                                     "Expected size type is int, not %s" % type(size))
+
+        status, read_result = gx_read_remote_device_port(self.__dev_handle, address, buff, size)
+        StatusProcessor.process(status, 'Device', 'read_remote_device_port')
+
+        return status
+
+    def write_remote_device_port(self, address, buf, size):
+        """
+        :brief      Write remote register
+        :param      address:    The address of the register to be written.(type: int)
+        :param      bytearray:  The data to be written from user.(type: buffer)
+        :return:    none
+        """
+        if not isinstance(address, INT_TYPE):
+            raise ParameterTypeError("Device.write_remote_device_port: "
+                                     "Expected address type is int, not %s" % type(address))
+
+        status, r_size = gx_write_remote_device_port(self.__dev_handle, address, buf, size)
+        StatusProcessor.process(status, 'Device', 'write_remote_device_port')
 
 
 class GEVDevice(Device):
@@ -1230,11 +1449,16 @@ class U2Device(Device):
 class DataStream:
     def __init__(self, handle):
         self.__dev_handle = handle
+        
+        self.__c_capture_callback = CAP_CALL(self.__on_capture_callback)
+        self.__py_capture_callback = None
+
         self.StreamAnnouncedBufferCount = IntFeature(self.__dev_handle, GxFeatureID.INT_ANNOUNCED_BUFFER_COUNT)
         self.StreamDeliveredFrameCount = IntFeature(self.__dev_handle, GxFeatureID.INT_DELIVERED_FRAME_COUNT)
         self.StreamLostFrameCount = IntFeature(self.__dev_handle, GxFeatureID.INT_LOST_FRAME_COUNT)
         self.StreamIncompleteFrameCount = IntFeature(self.__dev_handle, GxFeatureID.INT_INCOMPLETE_FRAME_COUNT)
         self.StreamDeliveredPacketCount = IntFeature(self.__dev_handle, GxFeatureID.INT_DELIVERED_PACKET_COUNT)
+        self.StreamBufferHandlingMode = EnumFeature(self.__dev_handle, GxFeatureID.ENUM_STREAM_BUFFER_HANDLING_MODE)
         self.payload_size = 0
         self.acquisition_flag = False
 
@@ -1297,6 +1521,48 @@ class DataStream:
         status = gx_flush_queue(self.__dev_handle)
         StatusProcessor.process(status, 'DataStream', 'flush_queue')
 
+    def register_capture_callback(self, callback_func):
+        """
+        :brief      Register the capture event callback function.
+        :param      callback_func:  callback function
+        :return:    none
+        """
+        if not isinstance(callback_func, types.FunctionType):
+            raise ParameterTypeError("DataStream.register_capture_callback: "
+                                     "Expected callback type is function not %s" % type(callback_func))
+
+        status = gx_register_capture_callback(self.__dev_handle, self.__c_capture_callback)
+        StatusProcessor.process(status, 'DataStream', 'register_capture_callback')
+
+        # callback will not recorded when register callback failed.
+        self.__py_capture_callback = callback_func
+
+    def unregister_capture_callback(self):
+        """
+        :brief      Unregister the capture event callback function.
+        :return:    none
+        """
+        status = gx_unregister_capture_callback(self.__dev_handle)
+        StatusProcessor.process(status, 'DataStream', 'unregister_capture_callback')
+        self.__py_capture_callback = None
+
+    def __on_capture_callback(self, capture_data):
+        """
+        :brief      Capture event callback function with capture date.
+        :return:    none
+        """
+        frame_data = GxFrameData()
+        frame_data.image_buf = capture_data.contents.image_buf
+        frame_data.width = capture_data.contents.width
+        frame_data.height = capture_data.contents.height
+        frame_data.pixel_format = capture_data.contents.pixel_format
+        frame_data.image_size = capture_data.contents.image_size
+        frame_data.frame_id = capture_data.contents.frame_id
+        frame_data.timestamp = capture_data.contents.timestamp
+        # frame_data.buf_id = capture_data.contents.buf_id
+        image = RawImage(frame_data)
+        self.__py_capture_callback(image)
+
 
 class U3VDataStream(DataStream):
     def __init__(self, handle):
@@ -1304,6 +1570,7 @@ class U3VDataStream(DataStream):
         DataStream.__init__(self, self.__handle)
         self.StreamTransferSize = IntFeature(self.__handle, GxFeatureID.INT_STREAM_TRANSFER_SIZE)
         self.StreamTransferNumberUrb = IntFeature(self.__handle, GxFeatureID.INT_STREAM_TRANSFER_NUMBER_URB)
+        self.StopAcquisitionMode = EnumFeature(self.__handle, GxFeatureID.ENUM_STOP_ACQUISITION_MODE)
 
 
 class GEVDataStream(DataStream):
@@ -1311,9 +1578,9 @@ class GEVDataStream(DataStream):
         self.__handle = handle
         DataStream.__init__(self, self.__handle)
         self.StreamResendPacketCount = IntFeature(self.__handle, GxFeatureID.INT_RESEND_PACKET_COUNT)
-        self.StreamRescuedPacketCount = IntFeature(self.__handle, GxFeatureID.INT_RESCUED_PACKED_COUNT)
+        self.StreamRescuedPacketCount = IntFeature(self.__handle, GxFeatureID.INT_RESCUED_PACKET_COUNT)
         self.StreamResendCommandCount = IntFeature(self.__handle, GxFeatureID.INT_RESEND_COMMAND_COUNT)
-        self.StreamUnexpectedPacketCount = IntFeature(self.__handle, GxFeatureID.INT_UNEXPECTED_PACKED_COUNT)
+        self.StreamUnexpectedPacketCount = IntFeature(self.__handle, GxFeatureID.INT_UNEXPECTED_PACKET_COUNT)
         self.MaxPacketCountInOneBlock = IntFeature(self.__handle, GxFeatureID.INT_MAX_PACKET_COUNT_IN_ONE_BLOCK)
         self.MaxPacketCountInOneCommand = IntFeature(self.__handle, GxFeatureID.INT_MAX_PACKET_COUNT_IN_ONE_COMMAND)
         self.ResendTimeout = IntFeature(self.__handle, GxFeatureID.INT_RESEND_TIMEOUT)
@@ -1323,6 +1590,7 @@ class GEVDataStream(DataStream):
         self.BlockTimeout = IntFeature(self.__handle, GxFeatureID.INT_BLOCK_TIMEOUT)
         self.MaxNumQueueBuffer = IntFeature(self.__handle, GxFeatureID.INT_MAX_NUM_QUEUE_BUFFER)
         self.PacketTimeout = IntFeature(self.__handle, GxFeatureID.INT_PACKET_TIMEOUT)
+        self.SocketBufferSize = IntFeature(self.__handle, GxFeatureID.INT_SOCKET_BUFFER_SIZE)
 
 
 class UnexpectedError(Exception):
@@ -1550,13 +1818,14 @@ class RGBImage:
             self.__image_array = (c_ubyte * self.frame_data.image_size)()
             self.frame_data.image_buf = addressof(self.__image_array)
 
-    def image_improvement(self, color_correction_param=0, contrast_lut=None, gamma_lut=None):
+    def image_improvement(self, color_correction_param=0, contrast_lut=None, gamma_lut=None, channel_order=DxRGBChannelOrder.ORDER_RGB):
         """
         :brief:     Improve image quality of the object itself
         :param      color_correction_param:     color correction param address
                                                 (get from Device.ColorCorrectionParam.get_int())
         :param      contrast_lut:               contrast lut
         :param      gamma_lut:                  gamma lut
+        :param      channel_order               RGB channel order of output image
         :return:    None
         """
         if (color_correction_param == 0) and (contrast_lut is None) and (gamma_lut is None):
@@ -1582,12 +1851,46 @@ class RGBImage:
             raise ParameterTypeError("RGBImage.image_improvement: "
                                      "Expected color_correction_param type is int, not %s" % type(color_correction_param))
 
-        status = dx_image_improvement(self.frame_data.image_buf, self.frame_data.image_buf,
+        if not isinstance(channel_order, INT_TYPE):
+            raise ParameterTypeError("RGBImage.image_improvement: "
+                                     "Expected channel_order type is int, not %s" % type(channel_order))
+
+        status = dx_image_improvement_ex(self.frame_data.image_buf, self.frame_data.image_buf,
                                       self.frame_data.width, self.frame_data.height,
-                                      color_correction_param, contrast_parameter, gamma_parameter)
+                                      color_correction_param, contrast_parameter, gamma_parameter, channel_order)
 
         if status != DxStatus.OK:
             raise UnexpectedError("RGBImage.image_improvement: failed, error code:%s" % hex(status).__str__())
+
+    def brightness(self, factor):
+        """
+        :brief      Brightness adjustment (RGB24)
+        :factor:    factor, range(-150 ~ 150)
+        :return:    None
+        """
+        if not isinstance(factor, INT_TYPE):
+            raise ParameterTypeError("RGBImage.brightness: "
+                                     "Expected factor type is int, not %s" % type(factor))
+
+        status = dx_brightness(self.frame_data.image_buf, self.frame_data.image_buf, self.frame_data.image_size, factor)
+
+        if status != DxStatus.OK:
+            raise UnexpectedError("RGBImage.brightness: failed, error code:%s" % hex(status).__str__())
+
+    def contrast(self, factor):
+        """
+        :brief      Contrast adjustment (RGB24)
+        :factor:    factor, range(-50 ~ 100)
+        :return:    None
+        """
+        if not isinstance(factor, INT_TYPE):
+            raise ParameterTypeError("RGBImage.contrast: "
+                                     "Expected factor type is int, not %s" % type(factor))
+
+        status = dx_contrast(self.frame_data.image_buf, self.frame_data.image_buf, self.frame_data.image_size, factor)
+
+        if status != DxStatus.OK:
+            raise UnexpectedError("RGBImage.contrast: failed, error code:%s" % hex(status).__str__())
 
     def saturation(self, factor):
         """
@@ -1607,7 +1910,7 @@ class RGBImage:
 
     def sharpen(self, factor):
         """
-        :brief       Sharpen adjustment (RGB24)
+        :brief      Sharpen adjustment (RGB24)
         :param      factor:                 sharpen factor, range(0.1 ~ 5.0)
         :return:    None
         """
@@ -1620,6 +1923,19 @@ class RGBImage:
 
         if status != DxStatus.OK:
             raise UnexpectedError("RGBImage.sharpen: failed, error code:%s" % hex(status).__str__())
+
+    def get_white_balance_ratio(self):
+        """
+        :brief      Get white balance ratios(RGB24), In order to calculate accurately, the camera should shoot
+                    objective "white" area,or input image is white area.
+        :return:    rgb_ratio:      (r_ratio, g_ratio, b_ratio)
+        """
+        status, rgb_ratio = dx_get_white_balance_ratio(self.frame_data.image_buf, self.frame_data.width, self.frame_data.height)
+
+        if status != DxStatus.OK:
+            raise UnexpectedError("RGBImage.get_white_balance_ratio: failed, error code:%s" % hex(status).__str__())
+
+        return rgb_ratio
 
     def get_numpy_array(self):
         """
@@ -1647,68 +1963,6 @@ class RawImage:
             self.__image_array = (c_ubyte * self.frame_data.image_size)()
             self.frame_data.image_buf = addressof(self.__image_array)
 
-    def __get_bit_depth(self, pixel_format):
-        """
-        :brief      Calculate pixel depth based on pixel format
-        :param      pixel_format
-        :return:    pixel depth
-        """
-        bpp10_tup = (GxPixelFormatEntry.MONO10, GxPixelFormatEntry.BAYER_GR10, GxPixelFormatEntry.BAYER_RG10,
-                     GxPixelFormatEntry.BAYER_GB10, GxPixelFormatEntry.BAYER_BG10)
-
-        bpp12_tup = (GxPixelFormatEntry.MONO12, GxPixelFormatEntry.BAYER_GR12, GxPixelFormatEntry.BAYER_RG12,
-                     GxPixelFormatEntry.BAYER_GB12, GxPixelFormatEntry.BAYER_BG12)
-
-        bpp16_tup = (GxPixelFormatEntry.MONO16, GxPixelFormatEntry.BAYER_GR16, GxPixelFormatEntry.BAYER_RG16,
-                     GxPixelFormatEntry.BAYER_GB16, GxPixelFormatEntry.BAYER_BG16)
-
-        if (pixel_format & PIXEL_BIT_MASK) == GX_PIXEL_8BIT:
-            return GxPixelSizeEntry.BPP8
-        elif pixel_format in bpp10_tup:
-            return GxPixelSizeEntry.BPP10
-        elif pixel_format in bpp12_tup:
-            return GxPixelSizeEntry.BPP12
-        elif pixel_format == GxPixelFormatEntry.MONO14:
-            return GxPixelSizeEntry.BPP14
-        elif pixel_format in bpp16_tup:
-            return GxPixelSizeEntry.BPP16
-        elif (pixel_format & PIXEL_BIT_MASK) == GX_PIXEL_24BIT:
-            return GxPixelSizeEntry.BPP24
-        elif (pixel_format & PIXEL_BIT_MASK) == GX_PIXEL_48BIT:
-            return GxPixelSizeEntry.BPP48
-        else:
-            return -1
-
-    def __get_pixel_color_filter(self, pixel_format):
-        """
-        :brief      Calculate pixel color filter based on pixel format
-        :param      pixel_format
-        :return:    pixel color filter
-        """
-        gr_tup = (GxPixelFormatEntry.BAYER_GR8, GxPixelFormatEntry.BAYER_GR10,
-                  GxPixelFormatEntry.BAYER_GR12, GxPixelFormatEntry.BAYER_GR16)
-        rg_tup = (GxPixelFormatEntry.BAYER_RG8, GxPixelFormatEntry.BAYER_RG10,
-                  GxPixelFormatEntry.BAYER_RG12, GxPixelFormatEntry.BAYER_RG16)
-        gb_tup = (GxPixelFormatEntry.BAYER_GB8, GxPixelFormatEntry.BAYER_GB10,
-                  GxPixelFormatEntry.BAYER_GB12, GxPixelFormatEntry.BAYER_GB16)
-        bg_tup = (GxPixelFormatEntry.BAYER_BG8, GxPixelFormatEntry.BAYER_BG10,
-                  GxPixelFormatEntry.BAYER_BG12, GxPixelFormatEntry.BAYER_BG16)
-        mono_tup = (GxPixelFormatEntry.MONO8, GxPixelFormatEntry.MONO8_SIGNED,
-                    GxPixelFormatEntry.MONO10, GxPixelFormatEntry.MONO12,
-                    GxPixelFormatEntry.MONO14, GxPixelFormatEntry.MONO16)
-
-        if pixel_format in gr_tup:
-            return DxPixelColorFilter.GR
-        elif pixel_format in rg_tup:
-            return DxPixelColorFilter.RG
-        elif pixel_format in gb_tup:
-            return DxPixelColorFilter.GB
-        elif pixel_format in bg_tup:
-            return DxPixelColorFilter.BG
-        elif pixel_format in mono_tup:
-            return DxPixelColorFilter.NONE
-        else:
-            return -1
 
     def __pixel_format_raw16_to_raw8(self, pixel_format):
         """
@@ -1804,8 +2058,115 @@ class RawImage:
 
         return image_rgb
 
+    def __raw8_to_rgb_ex(self, raw8_image, convert_type, pixel_color_filter, flip, channel_order):
+        """
+        :brief      convert raw8 to RGB with chosen RGB channel order
+        :param      raw8_image          RAWImage object, bit depth is 8bit
+        :param      convert_type:       Bayer convert type, See detail in DxBayerConvertType
+        :param      pixel_color_filter: pixel color filter, See detail in DxPixelColorFilter
+        :param      flip:               Output image flip flag
+                                        True: turn the image upside down
+                                        False: do not flip
+        :param      channel_order:      RGB channel order of output image
+        :return:    RAWImage object
+        """
+        frame_data = GxFrameData()
+        frame_data.status = raw8_image.frame_data.status
+        frame_data.width = raw8_image.frame_data.width
+        frame_data.height = raw8_image.frame_data.height
+        frame_data.pixel_format = GxPixelFormatEntry.RGB8_PLANAR
+        frame_data.image_size = raw8_image.frame_data.width * raw8_image.frame_data.height * 3
+        frame_data.frame_id = raw8_image.frame_data.frame_id
+        frame_data.timestamp = raw8_image.frame_data.timestamp
+        # frame_data.buf_id = self.frame_data.buf_id
+        frame_data.image_buf = None
+        image_rgb = RGBImage(frame_data)
+
+        status = dx_raw8_to_rgb24_ex(raw8_image.frame_data.image_buf, image_rgb.frame_data.image_buf,
+                                  raw8_image.frame_data.width, raw8_image.frame_data.height,
+                                  convert_type, pixel_color_filter, flip, channel_order)
+
+        if status != DxStatus.OK:
+            raise UnexpectedError("RawImage.convert: failed, error code:%s" % hex(status).__str__())
+
+        return image_rgb
+
+    def __raw8_pixel_format_rotate_90(self, pixel_format, direct):
+        """
+        :brief      Rotate pixel format by 90 or -90 degrees
+        :param      pixel_format    Image format
+        :param      direct          90 or -90
+        :return:    success: rotated pixel format
+                    failed: -1
+        """
+        if pixel_format & PIXEL_BIT_MASK != GX_PIXEL_8BIT:
+            print("__raw8_pixel_format_rotate_90.pixel_format only support raw8")
+            return -1
+
+        if direct != 90 and direct != -90:
+            print("__raw8_pixel_format_rotate_90.direct only support 90 or -90")
+            return -1
+
+        if pixel_format == GxPixelFormatEntry.MONO8:
+            return GxPixelFormatEntry.MONO8
+
+        if (pixel_format == GxPixelFormatEntry.BAYER_GR8 and direct == 90) or \
+            (pixel_format == GxPixelFormatEntry.BAYER_GB8 and direct == -90):
+            return GxPixelFormatEntry.BAYER_BG8
+
+        if (pixel_format == GxPixelFormatEntry.BAYER_RG8 and direct == 90) or \
+            (pixel_format == GxPixelFormatEntry.BAYER_BG8 and direct == -90):
+            return GxPixelFormatEntry.BAYER_GR8
+
+        if (pixel_format == GxPixelFormatEntry.BAYER_GB8 and direct == 90) or \
+            (pixel_format == GxPixelFormatEntry.BAYER_GR8 and direct == -90):
+            return GxPixelFormatEntry.BAYER_RG8
+
+        if (pixel_format == GxPixelFormatEntry.BAYER_BG8 and direct == 90) or \
+            (pixel_format == GxPixelFormatEntry.BAYER_RG8 and direct == -90):
+            return GxPixelFormatEntry.BAYER_GB8
+
+        return -1
+
+    def __raw8_pixel_format_mirror(self, pixel_format, mirror_mode):
+        """
+        :brief      Mirror pixel format
+        :param      pixel_format:   Image format
+        :param      mirror_mode:    DxImageMirrorMode
+        :return:    success: mirror pixel format
+                    failed: -1
+        """
+        if pixel_format & PIXEL_BIT_MASK != GX_PIXEL_8BIT:
+            print("__raw8_pixel_format_mirror.pixel_format only support raw8")
+            return -1
+
+        if mirror_mode not in (DxImageMirrorMode.VERTICAL_MIRROR, DxImageMirrorMode.HORIZONTAL_MIRROR):
+            print("mirror_mode only support VERTICAL_MIRROR or HORIZONTAL_MIRROR")
+            return -1
+
+        if pixel_format == GxPixelFormatEntry.MONO8:
+            return GxPixelFormatEntry.MONO8
+
+        if (pixel_format == GxPixelFormatEntry.BAYER_GR8 and mirror_mode == DxImageMirrorMode.HORIZONTAL_MIRROR) or \
+                (pixel_format == GxPixelFormatEntry.BAYER_GB8 and mirror_mode == DxImageMirrorMode.VERTICAL_MIRROR):
+            return GxPixelFormatEntry.BAYER_RG8
+
+        if (pixel_format == GxPixelFormatEntry.BAYER_RG8 and mirror_mode == DxImageMirrorMode.HORIZONTAL_MIRROR) or \
+                (pixel_format == GxPixelFormatEntry.BAYER_BG8 and mirror_mode == DxImageMirrorMode.VERTICAL_MIRROR):
+            return GxPixelFormatEntry.BAYER_GR8
+
+        if (pixel_format == GxPixelFormatEntry.BAYER_GB8 and mirror_mode == DxImageMirrorMode.HORIZONTAL_MIRROR) or \
+                (pixel_format == GxPixelFormatEntry.BAYER_GR8 and mirror_mode == DxImageMirrorMode.VERTICAL_MIRROR):
+            return GxPixelFormatEntry.BAYER_BG8
+
+        if (pixel_format == GxPixelFormatEntry.BAYER_BG8 and mirror_mode == DxImageMirrorMode.HORIZONTAL_MIRROR) or \
+                (pixel_format == GxPixelFormatEntry.BAYER_RG8 and mirror_mode == DxImageMirrorMode.VERTICAL_MIRROR):
+            return GxPixelFormatEntry.BAYER_GB8
+
+        return -1
+
     def convert(self, mode, flip=False, valid_bits=DxValidBit.BIT4_11,
-                convert_type=DxBayerConvertType.NEIGHBOUR):
+                convert_type=DxBayerConvertType.NEIGHBOUR, channel_order=DxRGBChannelOrder.ORDER_RGB):
         """
         :brief      Image format convert
         :param      mode:           "RAW8":     convert raw16 RAWImage object to raw8 RAWImage object
@@ -1815,6 +2176,7 @@ class RawImage:
                                     False: do not flip
         :param      valid_bits:     Data valid digit, See detail in DxValidBit, raw8 don't this param
         :param      convert_type:   Bayer convert type, See detail in DxBayerConvertType
+        :param      channel_order:  RGB channel order of output image
         :return:    return image object according to mode parameter
         """
         if self.frame_data.status != GxFrameStatusList.SUCCESS:
@@ -1828,6 +2190,10 @@ class RawImage:
         if not isinstance(convert_type, INT_TYPE):
             raise ParameterTypeError("RawImage.convert: "
                                      "Expected convert_type type is int, not %s" % type(convert_type))
+
+        if not isinstance(channel_order, INT_TYPE):
+            raise ParameterTypeError("RawImage.convert: "
+                                     "Expected channel_order type is int, not %s" % type(channel_order))
 
         if not isinstance(valid_bits, INT_TYPE):
             raise ParameterTypeError("RawImage.convert: "
@@ -1849,8 +2215,8 @@ class RawImage:
             print("RawImage.convert: valid_bits out of bounds, %s" % valid_bits_dict.__str__())
             return None
 
-        pixel_bit_depth = self.__get_bit_depth(self.frame_data.pixel_format)
-        pixel_color_filter = self.__get_pixel_color_filter(self.frame_data.pixel_format)
+        pixel_bit_depth = _InterUtility.get_bit_depth(self.frame_data.pixel_format)
+        pixel_color_filter = _InterUtility.get_pixel_color_filter(self.frame_data.pixel_format)
 
         if pixel_bit_depth < GxPixelSizeEntry.BPP8 or \
            pixel_bit_depth > GxPixelSizeEntry.BPP12:
@@ -1873,7 +2239,7 @@ class RawImage:
             else:
                 image_raw8 = self
 
-            return self.__raw8_to_rgb(image_raw8, convert_type, pixel_color_filter, flip)
+            return self.__raw8_to_rgb_ex(image_raw8, convert_type, pixel_color_filter, flip, channel_order)
         else:
             print('''RawImage.convert: mode="%s", isn't support''' % mode)
             return None
@@ -1886,12 +2252,278 @@ class RawImage:
                     This function should be used in each frame.
         :return:    None
         """
-        pixel_bit_depth = self.__get_bit_depth(self.frame_data.pixel_format)
+        pixel_bit_depth = _InterUtility.get_bit_depth(self.frame_data.pixel_format)
         status = dx_auto_raw_defective_pixel_correct(self.frame_data.image_buf, self.frame_data.width,
                                                      self.frame_data.height, pixel_bit_depth)
 
         if status != DxStatus.OK:
             raise UnexpectedError("RawImage.defective_pixel_correct: failed, error code:%s" % hex(status).__str__())
+
+    def raw8_rotate_90_cw(self):
+        """
+        :brief      To rotate the 8-bit image clockwise by 90 degrees
+        :return     RAWImage object
+        """
+        if self.frame_data.pixel_format & PIXEL_BIT_MASK != GX_PIXEL_8BIT:
+            raise InvalidParameter("RawImage.raw8_rotate_90_cw only support 8bit image")
+
+        frame_data = GxFrameData()
+        frame_data.status = self.frame_data.status
+        frame_data.width = self.frame_data.height
+        frame_data.height = self.frame_data.width
+        frame_data.pixel_format = self.__raw8_pixel_format_rotate_90(self.frame_data.pixel_format, 90)
+        if frame_data.pixel_format == -1:
+            raise UnexpectedError("Rotate pixel format %s failed" % hex(self.frame_data.pixel_format).__str__())
+
+        frame_data.image_size = self.frame_data.image_size
+        frame_data.frame_id = self.frame_data.frame_id
+        frame_data.timestamp = self.frame_data.timestamp
+        # frame_data.buf_id = self.frame_data.buf_id
+        frame_data.image_buf = None
+        rotate_image = RawImage(frame_data)
+
+        status = dx_raw8_rotate_90_cw(self.frame_data.image_buf, rotate_image.frame_data.image_buf,
+                                      self.frame_data.width, self.frame_data.height)
+
+        if status != DxStatus.OK:
+            raise UnexpectedError("RawImage.raw8_rotate_90_cw: failed, error code:%s" % hex(status).__str__())
+
+        return rotate_image
+
+    def raw8_rotate_90_ccw(self):
+        """
+        :brief      To rotate the 8-bit image clockwise by -90 degrees
+        :return     RAWImage object
+        """
+        if self.frame_data.pixel_format & PIXEL_BIT_MASK != GX_PIXEL_8BIT:
+            raise InvalidParameter("RawImage.raw8_rotate_90_ccw only support 8bit image")
+
+        frame_data = GxFrameData()
+        frame_data.status = self.frame_data.status
+        frame_data.width = self.frame_data.height
+        frame_data.height = self.frame_data.width
+        frame_data.pixel_format = self.__raw8_pixel_format_rotate_90(self.frame_data.pixel_format, -90)
+        if frame_data.pixel_format == -1:
+            raise UnexpectedError("Rotate pixel format %s failed" % hex(self.frame_data.pixel_format).__str__())
+
+        frame_data.image_size = self.frame_data.image_size
+        frame_data.frame_id = self.frame_data.frame_id
+        frame_data.timestamp = self.frame_data.timestamp
+        # frame_data.buf_id = self.frame_data.buf_id
+        frame_data.image_buf = None
+        rotate_image = RawImage(frame_data)
+
+        status = dx_raw8_rotate_90_ccw(self.frame_data.image_buf, rotate_image.frame_data.image_buf,
+                                     self.frame_data.width, self.frame_data.height)
+
+        if status != DxStatus.OK:
+            raise UnexpectedError("RawImage.raw8_rotate_90_ccw: failed, error code:%s" % hex(status).__str__())
+
+        return rotate_image
+
+    def brightness(self, factor):
+        """
+        :brief      Brightness adjustment (mono8)
+        :param      factor:    factor, range(-150 ~ 150)
+        :return:    None
+        """
+        if not isinstance(factor, INT_TYPE):
+            raise ParameterTypeError("RawImage.brightness: "
+                                     "Expected factor type is int, not %s" % type(factor))
+
+        if self.frame_data.pixel_format != GxPixelFormatEntry.MONO8:
+            raise InvalidParameter("RawImage.brightness only support mono8 image")
+
+        status = dx_brightness(self.frame_data.image_buf, self.frame_data.image_buf, self.frame_data.image_size, factor)
+
+        if status != DxStatus.OK:
+            raise UnexpectedError("RawImage.brightness: failed, error code:%s" % hex(status).__str__())
+
+    def contrast(self, factor):
+        """
+        :brief      Contrast adjustment (mono8)
+        :param      factor:    factor, range(-50 ~ 100)
+        :return:    None
+        """
+        if not isinstance(factor, INT_TYPE):
+            raise ParameterTypeError("RawImage.contrast: "
+                                     "Expected factor type is int, not %s" % type(factor))
+
+        if self.frame_data.pixel_format != GxPixelFormatEntry.MONO8:
+            raise InvalidParameter("RawImage.contrast only support mono8 image")
+
+        status = dx_contrast(self.frame_data.image_buf, self.frame_data.image_buf, self.frame_data.image_size, factor)
+
+        if status != DxStatus.OK:
+            raise UnexpectedError("RawImage.contrast: failed, error code:%s" % hex(status).__str__())
+
+    def mirror(self, mirror_mode):
+        """
+        :brief      Image mirror(Raw8 or 8bit image)
+        :param      mirror_mode:    mirror mode [reference DxImageMirrorMode]
+        :return     RAWImage object
+        """
+        if not isinstance(mirror_mode, INT_TYPE):
+            raise ParameterTypeError("RawImage.mirror: "
+                                     "Expected mirror_mode type is int, not %s" % type(mirror_mode))
+
+        if self.frame_data.pixel_format & PIXEL_BIT_MASK != GX_PIXEL_8BIT:
+            raise InvalidParameter("RawImage.mirror only support raw8 or mono8")
+
+        frame_data = GxFrameData()
+        frame_data.status = self.frame_data.status
+        frame_data.width = self.frame_data.width
+        frame_data.height = self.frame_data.height
+        frame_data.pixel_format = self.__raw8_pixel_format_mirror(self.frame_data.pixel_format, mirror_mode)
+        if frame_data.pixel_format == -1:
+            raise UnexpectedError("Rotate pixel format %s failed" % hex(self.frame_data.pixel_format).__str__())
+
+        frame_data.image_size = self.frame_data.image_size
+        frame_data.frame_id = self.frame_data.frame_id
+        frame_data.timestamp = self.frame_data.timestamp
+        # frame_data.buf_id = self.frame_data.buf_id
+        frame_data.image_buf = None
+        mirror_image = RawImage(frame_data)
+
+        status = dx_image_mirror(self.frame_data.image_buf, mirror_image.frame_data.image_buf, self.frame_data.width,
+                                 self.frame_data.height, mirror_mode)
+
+        if status != DxStatus.OK:
+            raise UnexpectedError("RawImage.mirror: failed, error code:%s" % hex(status).__str__())
+
+        return mirror_image
+
+    '''
+    def raw8_image_process(self, color_img_process_param):
+        """
+        :brief  Raw8 image process
+        :param  color_img_process_param:  image process param, refer to DxColorImgProcess
+        :return img_rgb
+        """
+        if self.frame_data.pixel_format & PIXEL_BIT_MASK != GX_PIXEL_8BIT or \
+                self.frame_data.pixel_format == GxPixelFormatEntry.MONO8:
+            raise ParameterTypeError("RawImage.raw8_image_process only support bayer raw8")
+
+        if not isinstance(color_img_process_param, DxColorImgProcess):
+            raise ParameterTypeError("RawImage.raw8_image_process img_process_param must be DxColorImgProcess type")
+
+        color_img_process_param.check_param_type()
+
+        frame_data = GxFrameData()
+        frame_data.status = self.frame_data.status
+        frame_data.width = self.frame_data.width
+        frame_data.height = self.frame_data.height
+        frame_data.pixel_format = GxPixelFormatEntry.RGB8_PLANAR
+        frame_data.image_size = self.frame_data.image_size * 3
+        frame_data.frame_id = self.frame_data.frame_id
+        frame_data.timestamp = self.frame_data.timestamp
+        # frame_data.buf_id = self.frame_data.buf_id
+        frame_data.image_buf = None
+        image_rgb = RGBImage(frame_data)
+
+        status = dx_raw8_image_process(self.frame_data.image_buf, image_rgb.frame_data.image_buf,
+                                       self.frame_data.width, self.frame_data.height, color_img_process_param)
+
+        if status != DxStatus.OK:
+            raise UnexpectedError("RawImage.raw8_image_process: failed, error code:%s" % hex(status).__str__())
+
+        return image_rgb
+
+    def mono8_image_process(self, mono_img_process_param):
+        """
+        :brief  mono8 image process
+        :param  mono_img_process_param:  image process param, refer to DxMonoImgProcess
+        :return img_mono
+        """
+        if self.frame_data.pixel_format != GxPixelFormatEntry.MONO8:
+            raise ParameterTypeError("RawImage.mono8_image_process only support mono8")
+
+        if not isinstance(mono_img_process_param, DxMonoImgProcess):
+            raise ParameterTypeError("RawImage.mono8_image_process img_process_param must be DxMonoImgProcess type")
+
+        mono_img_process_param.check_param_type()
+
+        frame_data = GxFrameData()
+        frame_data.status = self.frame_data.status
+        frame_data.width = self.frame_data.width
+        frame_data.height = self.frame_data.height
+        frame_data.pixel_format = self.frame_data.pixel_format
+        frame_data.image_size = self.frame_data.image_size
+        frame_data.frame_id = self.frame_data.frame_id
+        frame_data.timestamp = self.frame_data.timestamp
+        # frame_data.buf_id = self.frame_data.buf_id
+        frame_data.image_buf = None
+        image_mono = RawImage(frame_data)
+
+        status = dx_mono8_image_process(self.frame_data.image_buf, image_mono.frame_data.image_buf,
+                                        self.frame_data.width, self.frame_data.height, mono_img_process_param)
+
+        if status != DxStatus.OK:
+            raise UnexpectedError("RawImage.mono8_image_process: failed, error code:%s" % hex(status).__str__())
+
+        return image_mono
+    '''
+
+    def get_ffc_coefficients(self, dark_img=None, target_value=None):
+        """
+        :brief  Get Flat Field Correction Coefficients
+                (only support raw8 raw10 raw12)
+        :param  dark_img:           dark image, type should be RawImage
+        :param  target_value:       correction target Value
+        :return ffc_coefficients:   flat field correction coefficients Buffer
+        """
+        if dark_img is not None:
+            _InterUtility.check_type(dark_img, RawImage, "dark_img", "Utility", "get_ffc_coefficients")
+        
+        if target_value is not None:
+            _InterUtility.check_type(target_value, INT_TYPE, "target_value", "Utility", "get_ffc_coefficients")
+
+        actual_bits = _InterUtility.get_bit_depth(self.frame_data.pixel_format)
+        if actual_bits not in (GxPixelSizeEntry.BPP8, GxPixelSizeEntry.BPP10, GxPixelSizeEntry.BPP12):
+            raise InvalidParameter("Utility.get_ffc_coefficients only support raw8, raw10, raw12")
+
+        if dark_img is None:
+            status, ffc_coefficients, _ = dx_get_ffc_coefficients(self.frame_data.image_buf,
+                                                                  None,
+                                                                  actual_bits,
+                                                                  _InterUtility.get_pixel_color_filter(
+                                                                      self.frame_data.pixel_format),
+                                                                  self.frame_data.width, self.frame_data.height,
+                                                                  target_value)
+        else:
+            if self.frame_data.width != dark_img.get_width() or \
+                    self.frame_data.height != dark_img.get_height() or \
+                    self.frame_data.pixel_format != dark_img.get_pixel_format():
+                raise InvalidParameter("Utility.get_ffc_coefficients, the width/height/format of raw image and dark "
+                                       "image is different")
+
+            status, ffc_coefficients, _ = dx_get_ffc_coefficients(self.frame_data.image_buf,
+                                                                  dark_img.frame_data.image_buf,
+                                                                  actual_bits,
+                                                                  _InterUtility.get_pixel_color_filter(
+                                                                      self.frame_data.pixel_format),
+                                                                  self.frame_data.width, self.frame_data.height,
+                                                                  target_value)
+
+        if status != DxStatus.OK:
+            raise UnexpectedError("Utility.get_ffc_coefficients failure, Error code:%s" % hex(status).__str__())
+
+        return Buffer(ffc_coefficients)
+
+    def flat_field_correction(self, ffc_coefficients):
+        """
+        :brief      Flat Field Correction Process
+        :param      ffc_coefficients:   Flat field correction coefficients
+        :return:    None
+        """
+        actual_bits = _InterUtility.get_bit_depth(self.frame_data.pixel_format)
+        if actual_bits not in (GxPixelSizeEntry.BPP8, GxPixelSizeEntry.BPP10, GxPixelSizeEntry.BPP12):
+            raise InvalidParameter("Utility.get_ffc_coefficients only support raw8, raw10, raw12")
+        _InterUtility.check_type(ffc_coefficients, Buffer, "ffc_coefficients", "RawImage", "flat_field_correction")
+        status = dx_flat_field_correction(self.frame_data.image_buf, self.frame_data.image_buf, actual_bits,
+                                          self.frame_data.width, self.frame_data.height, ffc_coefficients)
+        if status != DxStatus.OK:
+            raise UnexpectedError("Utility.flat_field_correction failure, Error code:%s" % hex(status).__str__())
 
     def get_numpy_array(self):
         """
@@ -1996,6 +2628,11 @@ class Utility:
 
     @staticmethod
     def get_gamma_lut(gamma=1):
+        """
+        :brief   Calculating gamma lookup table (RGB24)
+        :param   gamma:  gamma param,range(0.1 ~ 10)
+        :return: gamma_lut buffer
+        """
         if not (isinstance(gamma, (INT_TYPE, float))):
             raise ParameterTypeError("Utility.get_gamma_lut: "
                                      "Expected gamma type is float, not %s" % type(gamma))
@@ -2013,6 +2650,11 @@ class Utility:
 
     @staticmethod
     def get_contrast_lut(contrast=0):
+        """
+        :brief   Calculating contrast lookup table (RGB24)
+        :param   contrast:   contrast param,range(-50 ~ 100)
+        :return: contrast_lut buffer
+        """
         if not (isinstance(contrast, INT_TYPE)):
             raise ParameterTypeError("Utility.get_contrast_lut: "
                                      "Expected contrast type is int, not %s" % type(contrast))
@@ -2028,3 +2670,168 @@ class Utility:
 
         return Buffer(contrast_lut)
 
+    @staticmethod
+    def get_lut(contrast=0, gamma=1, lightness=0):
+        """
+        :brief      Calculating lookup table of 8bit image
+        :param      contrast:   contrast param, range(-50 ~ 100)
+        :param      gamma:      gamma param, range(0.1 ~ 10)
+        :param      lightness:  lightness param, range(-150 ~ 150)
+        :return:    lut buffer
+        """
+        if not (isinstance(contrast, INT_TYPE)):
+            raise ParameterTypeError("Utility.get_lut: "
+                                     "Expected contrast type is int, not %s" % type(contrast))
+
+        if not (isinstance(gamma, (INT_TYPE, float))):
+            raise ParameterTypeError("Utility.get_lut: "
+                                     "Expected gamma type is float, not %s" % type(gamma))
+
+        if not (isinstance(lightness, INT_TYPE)):
+            raise ParameterTypeError("Utility.get_lut: "
+                                     "Expected lightness type is int, not %s" % type(lightness))
+
+        status, lut, lut_length = dx_get_lut(contrast, gamma, lightness)
+        if status != DxStatus.OK:
+            print("Utility.get_lut: get lut failure, Error code:%s" % hex(status).__str__())
+            return None
+
+        return Buffer(lut)
+
+    @staticmethod
+    def calc_cc_param(color_correction_param, saturation=64):
+        """
+        :brief      calculating array of image processing color adjustment
+        :param      color_correction_param: color correction param address(get from camera)
+        :param      saturation:             saturation factor,Range(0~128)
+        :return:    cc param buffer
+        """
+        if not (isinstance(color_correction_param, INT_TYPE)):
+            raise ParameterTypeError("Utility.calc_cc_param: Expected color_correction_param "
+                                     "type is int, not %s" % type(color_correction_param))
+
+        if not (isinstance(saturation, INT_TYPE)):
+            raise ParameterTypeError("Utility.calc_cc_param: "
+                                     "Expected saturation type is int, not %s" % type(saturation))
+
+        status, cc_param = dx_calc_cc_param(color_correction_param, saturation)
+        if status != DxStatus.OK:
+            print("Utility.calc_cc_param: calc correction param failure, Error code:%s" % hex(status).__str__())
+            return None
+
+        return Buffer(cc_param)
+
+    @staticmethod
+    def calc_user_set_cc_param(color_transform_factor, saturation=64):
+        """
+        :brief      calculating array of image processing color adjustment
+        :param      color_transform_factor: color correction param address(user set),
+                                            type should be list or tuple, size = 3*3=9
+        :param      saturation:             saturation factor,Range(0~128)
+        :return:    cc param buffer
+        """
+        _InterUtility.check_type(color_transform_factor, (list, tuple), "color_transform_factor",
+                                 "Utility", "calc_user_set_cc_param")
+        if len(color_transform_factor) != COLOR_TRANSFORM_MATRIX_SIZE:
+            raise InvalidParameter("Utility.calc_user_set_cc_param  "
+                                   "color_transform_factor should be list or tuple, length = 9")
+
+        status, cc_param = dx_calc_user_set_cc_param(color_transform_factor, saturation)
+        if status != DxStatus.OK:
+            print("Utility.calc_user_set_cc_param: calc correction param failure, "
+                  "Error code:%s" % hex(status).__str__())
+            return None
+
+        return Buffer(cc_param)
+
+
+class _InterUtility:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def check_type(var, var_type, var_name="", class_name="", func_name=""):
+        """
+        :chief  check type
+        """
+        if not isinstance(var, var_type):
+            if not isinstance(var_type, tuple):
+                raise ParameterTypeError("{} {}: Expected {} type is {}, not {}".format(class_name,
+                                                                                        func_name, var_name,
+                                                                                        var_type.__name__,
+                                                                                        type(var).__name__))
+            else:
+                type_name = ""
+                for i, name in enumerate(var_type):
+                    type_name = type_name + name.__name__
+                    if i != len(var_type) - 1:
+                        type_name = type_name + ", "
+                raise ParameterTypeError("{} {}: Expected {} type is ({}), not {}".format(class_name,
+                                                                                          func_name, var_name,
+                                                                                          type_name,
+                                                                                          type(var).__name__))
+
+    @staticmethod
+    def get_pixel_color_filter(pixel_format):
+        """
+        :brief      Calculate pixel color filter based on pixel format
+        :param      pixel_format
+        :return:    pixel color filter
+        """
+        gr_tup = (GxPixelFormatEntry.BAYER_GR8, GxPixelFormatEntry.BAYER_GR10,
+                  GxPixelFormatEntry.BAYER_GR12, GxPixelFormatEntry.BAYER_GR16)
+        rg_tup = (GxPixelFormatEntry.BAYER_RG8, GxPixelFormatEntry.BAYER_RG10,
+                  GxPixelFormatEntry.BAYER_RG12, GxPixelFormatEntry.BAYER_RG16)
+        gb_tup = (GxPixelFormatEntry.BAYER_GB8, GxPixelFormatEntry.BAYER_GB10,
+                  GxPixelFormatEntry.BAYER_GB12, GxPixelFormatEntry.BAYER_GB16)
+        bg_tup = (GxPixelFormatEntry.BAYER_BG8, GxPixelFormatEntry.BAYER_BG10,
+                  GxPixelFormatEntry.BAYER_BG12, GxPixelFormatEntry.BAYER_BG16)
+        mono_tup = (GxPixelFormatEntry.MONO8, GxPixelFormatEntry.MONO8_SIGNED,
+                    GxPixelFormatEntry.MONO10, GxPixelFormatEntry.MONO12,
+                    GxPixelFormatEntry.MONO14, GxPixelFormatEntry.MONO16)
+
+        if pixel_format in gr_tup:
+            return DxPixelColorFilter.GR
+        elif pixel_format in rg_tup:
+            return DxPixelColorFilter.RG
+        elif pixel_format in gb_tup:
+            return DxPixelColorFilter.GB
+        elif pixel_format in bg_tup:
+            return DxPixelColorFilter.BG
+        elif pixel_format in mono_tup:
+            return DxPixelColorFilter.NONE
+        else:
+            return -1
+
+    @staticmethod
+    def get_bit_depth(pixel_format):
+        """
+        :brief      Calculate pixel depth based on pixel format
+        :param      pixel_format
+        :return:    pixel depth
+        """
+        bpp10_tup = (GxPixelFormatEntry.MONO10, GxPixelFormatEntry.BAYER_GR10, GxPixelFormatEntry.BAYER_RG10,
+                     GxPixelFormatEntry.BAYER_GB10, GxPixelFormatEntry.BAYER_BG10)
+
+        bpp12_tup = (GxPixelFormatEntry.MONO12, GxPixelFormatEntry.BAYER_GR12, GxPixelFormatEntry.BAYER_RG12,
+                     GxPixelFormatEntry.BAYER_GB12, GxPixelFormatEntry.BAYER_BG12)
+
+        bpp16_tup = (GxPixelFormatEntry.MONO16, GxPixelFormatEntry.BAYER_GR16, GxPixelFormatEntry.BAYER_RG16,
+                     GxPixelFormatEntry.BAYER_GB16, GxPixelFormatEntry.BAYER_BG16)
+
+        if (pixel_format & PIXEL_BIT_MASK) == GX_PIXEL_8BIT:
+            return GxPixelSizeEntry.BPP8
+        elif pixel_format in bpp10_tup:
+            return GxPixelSizeEntry.BPP10
+        elif pixel_format in bpp12_tup:
+            return GxPixelSizeEntry.BPP12
+        elif pixel_format == GxPixelFormatEntry.MONO14:
+            return GxPixelSizeEntry.BPP14
+        elif pixel_format in bpp16_tup:
+            return GxPixelSizeEntry.BPP16
+        elif (pixel_format & PIXEL_BIT_MASK) == GX_PIXEL_24BIT:
+            return GxPixelSizeEntry.BPP24
+        elif (pixel_format & PIXEL_BIT_MASK) == GX_PIXEL_48BIT:
+            return GxPixelSizeEntry.BPP48
+        else:
+            return -1

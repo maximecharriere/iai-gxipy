@@ -5,9 +5,8 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="iai-gxipy",
-    version="1.0.2001.9131",
-    author="Maxime Charrière",
-    author_email="maxime.charriere@heig-vd.ch",
+    version="2.0.2105.9261",
+    author="Daheng Imaging",
     description="Python API to use with the Daheng Imaging cameras.",
     long_description=long_description,
     long_description_content_type="text/markdown",

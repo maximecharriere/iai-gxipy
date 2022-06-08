@@ -1,4 +1,4 @@
-﻿#!/usr/bin/python
+#!/usr/bin/python
 # -*-mode:python ; tab-width:4 -*- ex:set tabstop=4 shiftwidth=4 expandtab: -*-
 # -*- coding:utf-8 -*-
 
@@ -109,6 +109,9 @@ class GxFeatureID:
     COMMAND_TIMESTAMP_RESET = 0x7000000f                   # Timestamp reset
     COMMAND_TIMESTAMP_LATCH_RESET = 0x70000010             # Timestamp latch reset
     INT_TIMESTAMP_LATCH_VALUE = 0x10000011                 # The value of timestamp latch
+    STRING_DEVICE_PHY_VERSION = 0x50000012                 # Device network chip version
+    ENUM_DEVICE_TEMPERATURE_SELECTOR = 0x30000013          # Device temperature selection, reference GxDeviceTemperatureSelectorEntry
+    FLOAT_DEVICE_TEMPERATURE = 0x20000014                  # Device temperature
 
     # ---------------ImageFormat Section----------------------------------
     INT_SENSOR_WIDTH = 0x100003e8                           # The actual width of the camera's sensor in pixels
@@ -135,30 +138,31 @@ class GxFeatureID:
     ENUM_REGION_SELECTOR = 0x300003fd                       # ROI region select, reference GxRegionSelectorEntry
     INT_CENTER_WIDTH = 0x100003fe                           # Window width
     INT_CENTER_HEIGHT = 0x100003ff                          # Window height
-    ENUM_BINNING_HORIZONTAL_MODE = 0x30000400               # Binning horizontal mode
-    ENUM_BINNING_VERTICAL_MODE = 0x30000401                 # Binning vertical mode
+    ENUM_BINNING_HORIZONTAL_MODE = 0x30000400               # Binning horizontal mode, reference GxBinningHorizontalModeEntry
+    ENUM_BINNING_VERTICAL_MODE = 0x30000401                 # Binning vertical mode, reference GxBinningVerticalModeEntry
+    ENUM_SENSOR_SHUTTER_MODE = 0x30000402                   # Sensor shutter mode, reference GxSensorShutterModeEntry
 
     # ---------------TransportLayer Section-------------------------------
     INT_PAYLOAD_SIZE = 0x100007d0                           # Size of images in byte
-    BOOL_GEV_CURRENT_IP_CONFIGURATION_LLA = 0x400007d1      # IP configuration by LLA.
-    BOOL_GEV_CURRENT_IP_CONFIGURATION_DHCP = 0x400007d2     # IP configuration by DHCP
-    BOOL_GEV_CURRENT_IP_CONFIGURATION_PERSISTENT_IP = 0x400007d3   # IP configuration by PersistentIP
-    INT_ESTIMATED_BANDWIDTH = 0x100007d4                    # Estimated Bandwidth in Bps
-    INT_GEV_HEARTBEAT_TIMEOUT = 0x100007d5                  # The heartbeat timeout in milliseconds
-    INT_GEV_PACKET_SIZE = 0x100007d6                        # The packet size in bytes for each packet
-    INT_GEV_PACKET_DELAY = 0x100007d7                       # A delay between the transmission of each packet
-    INT_GEV_LINK_SPEED = 0x100007d8                         # The connection speed in Mbps
+    BOOL_GEV_CURRENT_IP_CONFIGURATION_LLA = 0x400007d1      # (Only GEVDevice)IP configuration by LLA.
+    BOOL_GEV_CURRENT_IP_CONFIGURATION_DHCP = 0x400007d2     # (Only GEVDevice)IP configuration by DHCP
+    BOOL_GEV_CURRENT_IP_CONFIGURATION_PERSISTENT_IP = 0x400007d3   # (Only GEVDevice)IP configuration by PersistentIP
+    INT_ESTIMATED_BANDWIDTH = 0x100007d4                    # (Only GEVDevice)Estimated Bandwidth in Bps
+    INT_GEV_HEARTBEAT_TIMEOUT = 0x100007d5                  # (Only GEVDevice)The heartbeat timeout in milliseconds
+    INT_GEV_PACKET_SIZE = 0x100007d6                        # (Only GEVDevice)The packet size in bytes for each packet
+    INT_GEV_PACKET_DELAY = 0x100007d7                       # (Only GEVDevice)A delay between the transmission of each packet
+    INT_GEV_LINK_SPEED = 0x100007d8                         # (Only GEVDevice)The connection speed in Mbps
 
     # ---------------AcquisitionTrigger Section---------------------------
-    ENUM_ACQUISITION_MODE = 0x30000bb8                      # The mode of acquisition, Reference: GxAcquisitionModeEntry
+    ENUM_ACQUISITION_MODE = 0x30000bb8                      # The mode of acquisition, reference GxAcquisitionModeEntry
     COMMAND_ACQUISITION_START = 0x70000bb9                  # The command for starts the acquisition of images
     COMMAND_ACQUISITION_STOP = 0x70000bba                   # The command for stop the acquisition of images
-    INT_ACQUISITION_SPEED_LEVEL = 0x10000bbb                # The level for acquisition speed
-    INT_ACQUISITION_FRAME_COUNT = 0x10000bbc
-    ENUM_TRIGGER_MODE = 0x30000bbd                          # Trigger mode, Reference:GxTriggerModeEntry
+    INT_ACQUISITION_SPEED_LEVEL = 0x10000bbb                # (Only U2Device)The level for acquisition speed
+    INT_ACQUISITION_FRAME_COUNT = 0x10000bbc                # (Only U2Device)Number of frames to acquire in MultiFrame Acquisition mode.
+    ENUM_TRIGGER_MODE = 0x30000bbd                          # Trigger mode switch
     COMMAND_TRIGGER_SOFTWARE = 0x70000bbe                   # The command for generates a software trigger signal
     ENUM_TRIGGER_ACTIVATION = 0x30000bbf                    # Trigger polarity, Reference GxTriggerActivationEntry
-    ENUM_TRIGGER_SWITCH = 0x30000bc0                        # The switch of External trigger
+    ENUM_TRIGGER_SWITCH = 0x30000bc0                        # (Only U2Device)The switch of External trigger
     FLOAT_EXPOSURE_TIME = 0x20000bc1                        # Exposure time
     ENUM_EXPOSURE_AUTO = 0x30000bc2                         # Exposure auto
     FLOAT_TRIGGER_FILTER_RAISING = 0x20000bc3               # The Value of rising edge triggered filter
@@ -171,55 +175,58 @@ class GxFeatureID:
     ENUM_TRANSFER_OPERATION_MODE = 0x30000bca               # The operation method for the transfers, Reference GxTransferOperationModeEntry
     COMMAND_TRANSFER_START = 0x70000bcb                     # Starts the streaming of data blocks out of the device
     INT_TRANSFER_BLOCK_COUNT = 0x10000bcc                   # The number of data Blocks that the device should stream before stopping
-    BOOL_FRAME_STORE_COVER_ACTIVE = 0x40000bcd              # The switch for frame cover
+    BOOL_FRAMESTORE_COVER_ACTIVE = 0x40000bcd               # The switch for frame cover
     ENUM_ACQUISITION_FRAME_RATE_MODE = 0x30000bce           # The switch for Control frame rate
     FLOAT_ACQUISITION_FRAME_RATE = 0x20000bcf               # The value for Control frame rate
     FLOAT_CURRENT_ACQUISITION_FRAME_RATE = 0x20000bd0       # The maximum allowed frame acquisition rate
     ENUM_FIXED_PATTERN_NOISE_CORRECT_MODE = 0x30000bd1      # The switch of fixed pattern noise correct
     INT_ACQUISITION_BURST_FRAME_COUNT = 0x10000bd6          # The acquisition burst frame count
-    ENUM_ACQUISITION_STATUS_SELECTOR = 0x30000bd7           # The selector of acquisition status
+    ENUM_ACQUISITION_STATUS_SELECTOR = 0x30000bd7           # The selector of acquisition status, reference GxAcquisitionStatusSelectorEntry
     BOOL_ACQUISITION_STATUS = 0x40000bd8                    # The acquisition status
     FLOAT_EXPOSURE_DELAY = 0x2000765c                       # The exposure delay
+    FLOAT_EXPOSURE_OVERLAP_TIME_MAX = 0x2000765d            # Maximum overlap exposure time
+    ENUM_EXPOSURE_TIME_MODE = 0x3000765e                    # Exposure time mode, reference GxExposureTimeModeEntry
 
     # ----------------DigitalIO Section-----------------------------------
     ENUM_USER_OUTPUT_SELECTOR = 0x30000fa0                  # selects user settable output signal, Reference GxUserOutputSelectorEntry
     BOOL_USER_OUTPUT_VALUE = 0x40000fa1                     # The state of the output signal
-    ENUM_USER_OUTPUT_MODE = 0x30000fa2                      # UserIO output mode, Reference GxUserOutputModeEntry
-    ENUM_STROBE_SWITCH = 0x30000fa3                         # Strobe switch
+    ENUM_USER_OUTPUT_MODE = 0x30000fa2                      # (Only U2Device)UserIO output mode, Reference GxUserOutputModeEntry
+    ENUM_STROBE_SWITCH = 0x30000fa3                         # (Only U2Device)Strobe switch
     ENUM_LINE_SELECTOR = 0x30000fa4                         # Line selector, Reference GxLineSelectorEntry
     ENUM_LINE_MODE = 0x30000fa5                             # Line mode, Reference GxLineModeEntry
     BOOL_LINE_INVERTER = 0x40000fa6                         # Pin level reversal
     ENUM_LINE_SOURCE = 0x30000fa7                           # line source, Reference GxLineSourceEntry
     BOOL_LINE_STATUS = 0x40000fa8                           # line status
     INT_LINE_STATUS_ALL = 0x10000fa9                        # all line status
-    FLOAT_PULSE_WIDTH = 0x20000faa                          #
+    FLOAT_PULSE_WIDTH = 0x20000faa                          # IO pulse width
 
     # ----------------AnalogControls Section------------------------------
-    ENUM_GAIN_AUTO = 0x30001388                             # gain auto, Reference GxGainAutoEntry
+    ENUM_GAIN_AUTO = 0x30001388                             # gain auto, Reference GxAutoEntry
     ENUM_GAIN_SELECTOR = 0x30001389                         # selects gain channel, Reference GxGainSelectorEntry
-    ENUM_BLACK_LEVEL_AUTO = 0x3000138b                      # Black level auto, Reference GxBlackLevelAutoEntry
+    ENUM_BLACK_LEVEL_AUTO = 0x3000138b                      # Black level auto, Reference GxAutoEntry
     ENUM_BLACK_LEVEL_SELECTOR = 0x3000138c                  # Black level channel, Reference GxBlackLevelSelectEntry
-    ENUM_BALANCE_WHITE_AUTO = 0x3000138e                    # Balance white auto, Reference GxBalanceWhiteAutoEntry
+    ENUM_BALANCE_WHITE_AUTO = 0x3000138e                    # Balance white auto, Reference GxAutoEntry
     ENUM_BALANCE_RATIO_SELECTOR = 0x3000138f                # selects Balance white channel, Reference GxBalanceRatioSelectorEntry
     FLOAT_BALANCE_RATIO = 0x20001390                        # Balance white channel ratio
-    ENUM_COLOR_CORRECT = 0x30001391                         # Color correct, Reference GxColorCorrectEntry
-    ENUM_DEAD_PIXEL_CORRECT = 0x30001392                    # Pixel correct, Reference GxDeadPixelCorrectEntry
-    FLOAT_GAIN = 0x20001393                                 # gain
-    FLOAT_BLACK_LEVEL = 0x20001394                          # Black level
+    ENUM_COLOR_CORRECT = 0x30001391                         # Color correct switch
+    ENUM_DEAD_PIXEL_CORRECT = 0x30001392                    # Pixel correct switch
+    FLOAT_GAIN = 0x20001393                                 # gain value
+    FLOAT_BLACK_LEVEL = 0x20001394                          # Black level value
     BOOL_GAMMA_ENABLE = 0x40001395                          # Gamma enable bit
-    ENUM_GAMMA_MODE = 0x30001396                            # Gamma mode
+    ENUM_GAMMA_MODE = 0x30001396                            # Gamma mode, reference GxGammaModeEntry
     FLOAT_GAMMA = 0x20001397                                # The value of Gamma
-    INT_DIGITAL_SHIFT = 0x10001398                          #
+    INT_DIGITAL_SHIFT = 0x10001398                          # bit select
+    ENUM_LIGHT_SOURCE_PRESET = 0x30001399                   # Light source preset, Reference GxLightSourcePresetEntry
 
     # ---------------CustomFeature Section--------------------------------
-    INT_ADC_LEVEL = 0x10001770                              # AD conversion level
-    INT_H_BLANKING = 0x10001771                             # Horizontal blanking
-    INT_V_BLANKING = 0x10001772                             # Vertical blanking
-    STRING_USER_PASSWORD = 0x50001773                       # User encrypted zone cipher
-    STRING_VERIFY_PASSWORD = 0x50001774                     # User encrypted zone check cipher
-    BUFFER_USER_DATA = 0x60001775                           # User encrypted area content
+    INT_ADC_LEVEL = 0x10001770                              # (Only U2Device)AD conversion level
+    INT_H_BLANKING = 0x10001771                             # (Only U2Device)Horizontal blanking
+    INT_V_BLANKING = 0x10001772                             # (Only U2Device)Vertical blanking
+    STRING_USER_PASSWORD = 0x50001773                       # (Only U2Device)User encrypted zone cipher
+    STRING_VERIFY_PASSWORD = 0x50001774                     # (Only U2Device)User encrypted zone check cipher
+    BUFFER_USER_DATA = 0x60001775                           # (Only U2Device)User encrypted area content
     INT_GRAY_VALUE = 0x10001776                             # Expected gray value
-    ENUM_AA_LIGHT_ENVIRONMENT = 0x30001777                  # Gain auto, Exposure auto, Light environment type,
+    ENUM_AA_LIGHT_ENVIRONMENT = 0x30001777                  # (Only U2Device)Gain auto, Exposure auto, Light environment type,
                                                             # Reference GxAALightEnvironmentEntry
     INT_AAROI_OFFSETX = 0x10001778                          # The X offset for the rect of interest in pixels for 2A
     INT_AAROI_OFFSETY = 0x10001779                          # The Y offset for the rect of interest in pixels for 2A
@@ -229,29 +236,38 @@ class GxFeatureID:
     FLOAT_AUTO_GAIN_MAX = 0x2000177d                        # Automatic gain maximum
     FLOAT_AUTO_EXPOSURE_TIME_MIN = 0x2000177e               # Automatic exposure minimum
     FLOAT_AUTO_EXPOSURE_TIME_MAX = 0x2000177f               # Automatic exposure maximum
-    BUFFER_FRAME_INFORMATION = 0x60001780                   # Image frame information
+    BUFFER_FRAME_INFORMATION = 0x60001780                   # (Only U2Device)Image frame information
     INT_CONTRAST_PARAM = 0x10001781                         # Contrast parameter
     FLOAT_GAMMA_PARAM = 0x20001782                          # Gamma parameter
     INT_COLOR_CORRECTION_PARAM = 0x10001783                 # Color correction param
-    ENUM_IMAGE_GRAY_RAISE_SWITCH = 0x30001784               # Image gray raise, Reference GxImageGrayRaiseSwitchEntry
+    ENUM_IMAGE_GRAY_RAISE_SWITCH = 0x30001784               # (Only U2Device)Image gray raise switch
     ENUM_AWB_LAMP_HOUSE = 0x30001785                        # Automatic white balance light source
                                                             # Reference GxAWBLampHouseEntry
     INT_AWBROI_OFFSETX = 0x10001786                         # Offset_X of automatic white balance region
     INT_AWBROI_OFFSETY = 0x10001787                         # Offset_Y of automatic white balance region
     INT_AWBROI_WIDTH = 0x10001788                           # Width of automatic white balance region
     INT_AWBROI_HEIGHT = 0x10001789                          # Height of automatic white balance region
-    ENUM_SHARPNESS_MODE = 0x3000178a                        # Sharpness mode, Reference GxSharpnessModeEntry
-    FLOAT_SHARPNESS = 0x2000178b                            # Sharpness
+    ENUM_SHARPNESS_MODE = 0x3000178a                        # Sharpness switch
+    FLOAT_SHARPNESS = 0x2000178b                            # Sharpness value
+    ENUM_USER_DATA_FIELD_SELECTOR = 0x3000178c              # User selects the flash data field
+                                                            # Reference GxUserDataFieldSelectorEntry for area selection
+    BUFFER_USER_DATA_FIELD_VALUE = 0x6000178d               # User data field content
+    ENUM_FLAT_FIELD_CORRECTION = 0x3000178e                 # Flat field correction switch
+    ENUM_NOISE_REDUCTION_MODE = 0x3000178f                  # Noise reduction switch
+    FLOAT_NOISE_REDUCTION = 0x20001790                      # Noise reduction value
+    BUFFER_FFCLOAD = 0x60001791                             # Get flat field correction parameters
+    BUFFER_FFCSAVE = 0x60001792                             # Set flat field correction parameters
+    ENUM_STATIC_DEFECT_CORRECTION = 0x30001793              # Static dead pixel correction switch
 
     # ---------------UserSetControl Section-------------------------------
-    ENUM_USER_SET_SELECTOR = 0x30001b58                     # Parameter group selection, Reference GxUserSetSelectorEntry
+    ENUM_USER_SET_SELECTOR = 0x30001b58                     # Parameter group selection, Reference GxUserSetEntry
     COMMAND_USER_SET_LOAD = 0x70001b59                      # Load parameter group
     COMMAND_USER_SET_SAVE = 0x70001b5a                      # Save parameter group
-    ENUM_USER_SET_DEFAULT = 0x30001b5b                      # Startup parameter group, Reference GxUserSetDefaultEntry
+    ENUM_USER_SET_DEFAULT = 0x30001b5b                      # Startup parameter group, Reference GxUserSetEntry
 
     # ---------------Event Section----------------------------------------
     ENUM_EVENT_SELECTOR = 0x30001f40                        # Event source select, Reference GxEventSelectorEntry
-    ENUM_EVENT_NOTIFICATION = 0x30001f41                    # Event enabled, Reference GxEventNotificationEntry
+    ENUM_EVENT_NOTIFICATION = 0x30001f41                    # Switch of the notification to the host application of the occurrence of the selected Event.
     INT_EVENT_EXPOSURE_END = 0x10001f42                     # Exposure end event
     INT_EVENT_EXPOSURE_END_TIMESTAMP = 0x10001f43           # The timestamp of Exposure end event
     INT_EVENT_EXPOSURE_END_FRAME_ID = 0x10001f44            # The frame id of Exposure end event
@@ -265,6 +281,18 @@ class GxFeatureID:
     INT_EVENT_BLOCK_NOT_EMPTY_TIMESTAMP = 0x10001f4c        # The timestamp of frame memory not empty event
     INT_EVENT_INTERNAL_ERROR = 0x10001f4d                   # Internal erroneous event
     INT_EVENT_INTERNAL_ERROR_TIMESTAMP = 0x10001f4e         # The timestamp of internal erroneous event
+    INT_EVENT_FRAMEBURSTSTART_OVERTRIGGER = 0x10001f4f      # Frame burst start overtrigger event ID
+    INT_EVENT_FRAMEBURSTSTART_OVERTRIGGER_FRAMEID = 0x10001f50   # Frame burst start overtrigger event frame ID
+    INT_EVENT_FRAMEBURSTSTART_OVERTRIGGER_TIMESTAMP = 0x10001f51 # Frame burst start overtrigger event timestamp
+    INT_EVENT_FRAMESTART_WAIT = 0x10001f52                  # Frame start wait event ID
+    INT_EVENT_FRAMESTART_WAIT_TIMESTAMP = 0x10001f53        # Frame start wait event timestamp
+    INT_EVENT_FRAMEBURSTSTART_WAIT = 0x10001f54             # Frame burst start wait event ID
+    INT_EVENT_FRAMEBURSTSTART_WAIT_TIMESTAMP = 0x10001f55   # Frame burst start wait event timestamp
+    INT_EVENT_BLOCK_DISCARD_FRAMEID= 0x10001f56             # Data block discard event frame ID
+    INT_EVENT_FRAMESTART_OVERTRIGGER_FRAMEID = 0x10001f57   # Frame start wait overtrigger event frame ID
+    INT_EVENT_BLOCK_NOT_EMPTY_FRAMEID = 0x10001f58          # Data block not empty event frame ID
+    INT_EVENT_FRAMESTART_WAIT_FRAMEID = 0x10001f59          # Frame start wait event frame ID
+    INT_EVENT_FRAMEBURSTSTART_WAIT_FRAMEID = 0x10001f5a     # Frame burst start wait event frame ID
 
     # ---------------LUT Section------------------------------------------
     ENUM_LUT_SELECTOR = 0x30002328                          # Select lut, Reference GxLutSelectorEntry
@@ -273,16 +301,18 @@ class GxFeatureID:
     INT_LUT_INDEX = 0x1000232b                              # Lut index
     INT_LUT_VALUE = 0x1000232c                              # Lut value
 
-    # ---------------Color Transformation Control-------------------------
-    ENUM_COLOR_TRANSFORMATION_MODE = 0x30002af8             # Color transformation mode
-    BOOL_COLOR_TRANSFORMATION_ENABLE = 0x40002af9           # Color transformation enable bit
-    ENUM_COLOR_TRANSFORMATION_VALUE_SELECTOR = 0x30002afa   # The selector of color transformation value
-    FLOAT_COLOR_TRANSFORMATION_VALUE = 0x20002afb           # The value of color transformation
-
     # ---------------ChunkData Section------------------------------------
     BOOL_CHUNK_MODE_ACTIVE = 0x40002711                     # Enable frame information
     ENUM_CHUNK_SELECTOR = 0x30002712                        # Select frame information channel, Reference GxChunkSelectorEntry
     BOOL_CHUNK_ENABLE = 0x40002713                          # Enable single frame information channel
+
+    # ---------------Color Transformation Control-------------------------
+    ENUM_COLOR_TRANSFORMATION_MODE = 0x30002af8             # Color transformation mode, Reference GxColorTransformationModeEntry
+    BOOL_COLOR_TRANSFORMATION_ENABLE = 0x40002af9           # Color transformation enable bit
+    ENUM_COLOR_TRANSFORMATION_VALUE_SELECTOR = 0x30002afa   # The selector of color transformation value, Reference GxColorTransformationValueSelectorEntry
+    FLOAT_COLOR_TRANSFORMATION_VALUE = 0x20002afb           # The value of color transformation
+    ENUM_SATURATION_MODE = 0x30002afc                       # Saturation switch
+    INT_SATURATION = 0x10002afd                             # Saturation value
 
     # ---------------CounterAndTimerControl Section-----------------------
     ENUM_TIMER_SELECTOR = 0x30002ee0                        # Selects which Counter to configure, Refer to GxTimerSelectorEntry
@@ -294,10 +324,16 @@ class GxFeatureID:
     ENUM_COUNTER_RESET_SOURCE = 0x30002ee6                  # Selects the signals that will be the source to reset the Counter, Refer to GxCounterResetSourceEntry
     ENUM_COUNTER_RESET_ACTIVATION = 0x30002ee7              # Selects the Activation mode of the Counter Reset Source signal, Refer to GxCounterResetActivationEntry
     COMMAND_COUNTER_RESET = 0x70002ee8                      # Does a software reset of the selected Counter and starts it.
+    ENUM_COUNTER_TRIGGER_SOURCE = 0x30002ee9                # Counter trigger source, Reference GxCounterTriggerSourceEntry
+    INT_COUNTER_DURATION = 0x10002eea                       # Counter duration value
+    ENUM_TIMER_TRIGGER_ACTIVATION = 0x30002eeb              # Timer Trigger Activation, reference GxTimerTriggerActivationEntry
+
+    # ---------------RemoveParameterLimitControl Section------------------
+    ENUM_REMOVE_PARAMETER_LIMIT = 0x300032c8                # Remove paremeter range restriction switch
 
     # ---------------Device Feature---------------------------------------
-    INT_COMMAND_TIMEOUT = 0x13000000                        # The time of command timeout
-    INT_COMMAND_RETRY_COUNT = 0x13000001                    # Command retry times
+    INT_COMMAND_TIMEOUT = 0x13000000                        # (Only GEVDevice)The time of command timeout
+    INT_COMMAND_RETRY_COUNT = 0x13000001                    # (Only GEVDevice)Command retry times
 
     # ---------------DataStream Feature-----------------------------------
     INT_ANNOUNCED_BUFFER_COUNT = 0x14000000                 # The number of Buffer declarations
@@ -305,21 +341,24 @@ class GxFeatureID:
     INT_LOST_FRAME_COUNT = 0x14000002                       # Number of lost frames caused by buffer deficiency
     INT_INCOMPLETE_FRAME_COUNT = 0x14000003                 # Number of residual frames received
     INT_DELIVERED_PACKET_COUNT = 0x14000004                 # The number of packets received
-    INT_RESEND_PACKET_COUNT = 0x14000005                    # Number of retransmission packages
-    INT_RESCUED_PACKED_COUNT = 0x14000006                   # Retransmission success package number
-    INT_RESEND_COMMAND_COUNT = 0x14000007                   # Retransmission command times
-    INT_UNEXPECTED_PACKED_COUNT = 0x14000008                # Exception packet number
-    INT_MAX_PACKET_COUNT_IN_ONE_BLOCK = 0x14000009          # Data block maximum retransmission number
-    INT_MAX_PACKET_COUNT_IN_ONE_COMMAND = 0x1400000a        # The maximum number of packets contained in one command
-    INT_RESEND_TIMEOUT = 0x1400000b                         # Retransmission timeout time
-    INT_MAX_WAIT_PACKET_COUNT = 0x1400000c                  # Maximum waiting packet number
-    ENUM_RESEND_MODE = 0x3400000d                           # Retransmission mode, Reference GxDSResendModeEntry
-    INT_MISSING_BLOCK_ID_COUNT = 0x1400000e                 # BlockID lost number
-    INT_BLOCK_TIMEOUT = 0x1400000f                          # Data block timeout time
-    INT_STREAM_TRANSFER_SIZE = 0x14000010                   # Data block size
-    INT_STREAM_TRANSFER_NUMBER_URB = 0x14000011             # Number of data blocks
-    INT_MAX_NUM_QUEUE_BUFFER = 0x14000012                   # The maximum Buffer number of the collection queue
-    INT_PACKET_TIMEOUT = 0x14000013                         # Packet timeout time
+    INT_RESEND_PACKET_COUNT = 0x14000005                    # (Only GEVDevice)Number of retransmission packages
+    INT_RESCUED_PACKET_COUNT = 0x14000006                   # (Only GEVDevice)Retransmission success package number
+    INT_RESEND_COMMAND_COUNT = 0x14000007                   # (Only GEVDevice)Retransmission command times
+    INT_UNEXPECTED_PACKET_COUNT = 0x14000008                # (Only GEVDevice)Exception packet number
+    INT_MAX_PACKET_COUNT_IN_ONE_BLOCK = 0x14000009          # (Only GEVDevice)Data block maximum retransmission number
+    INT_MAX_PACKET_COUNT_IN_ONE_COMMAND = 0x1400000a        # (Only GEVDevice)The maximum number of packets contained in one command
+    INT_RESEND_TIMEOUT = 0x1400000b                         # (Only GEVDevice)Retransmission timeout time
+    INT_MAX_WAIT_PACKET_COUNT = 0x1400000c                  # (Only GEVDevice)Maximum waiting packet number
+    ENUM_RESEND_MODE = 0x3400000d                           # (Only GEVDevice)Retransmission mode switch
+    INT_MISSING_BLOCK_ID_COUNT = 0x1400000e                 # (Only GEVDevice)BlockID lost number
+    INT_BLOCK_TIMEOUT = 0x1400000f                          # (Only GEVDevice)Data block timeout time
+    INT_STREAM_TRANSFER_SIZE = 0x14000010                   # (Only U3VDevice)Data block size
+    INT_STREAM_TRANSFER_NUMBER_URB = 0x14000011             # (Only U3VDevice)Number of data blocks
+    INT_MAX_NUM_QUEUE_BUFFER = 0x14000012                   # (Only GEVDevice)The maximum Buffer number of the collection queue
+    INT_PACKET_TIMEOUT = 0x14000013                         # (Only GEVDevice)Packet timeout time
+    INT_SOCKET_BUFFER_SIZE = 0x14000014                     # (Only GEVDevice)Socket buffer size in kilobytes
+    ENUM_STOP_ACQUISITION_MODE = 0x34000015                 # (Only U3VDevice)Stop acquisition mode Reference GxStopAcquisitionModeEntry
+    ENUM_STREAM_BUFFER_HANDLING_MODE = 0x34000016           # Buffer handling mode Reference GxDSStreamBufferHandlingModeEntry
 
     def __init__(self):
         pass
@@ -1228,7 +1267,7 @@ if hasattr(dll, 'GXSendCommand'):
         status = dll.GXSendCommand(handle_c, feature_id_c)
         return status
 
-'''
+
 CAP_CALL = CFUNCTYPE(None, POINTER(GxFrameCallbackParam))
 if hasattr(dll, 'GXRegisterCaptureCallback'):
     def gx_register_capture_callback(handle, cap_call):
@@ -1257,7 +1296,7 @@ if hasattr(dll, 'GXUnregisterCaptureCallback'):
 
         status = dll.GXUnregisterCaptureCallback(handle_c)
         return status
-'''
+
 
 if hasattr(dll, 'GXGetImage'):
     def gx_get_image(handle, frame_data, time_out=200):
@@ -1297,7 +1336,6 @@ if hasattr(dll, 'GXFlushQueue'):
         return status
 
 
-'''
 OFF_LINE_CALL = CFUNCTYPE(None, c_void_p)
 if hasattr(dll, 'GXRegisterDeviceOfflineCallback'):
     def gx_register_device_offline_callback(handle, call_back):
@@ -1337,6 +1375,7 @@ if hasattr(dll, 'GXUnregisterDeviceOfflineCallback'):
         return status
 
 
+'''
 if hasattr(dll, 'GXFlushEvent'):
     def gx_flush_event(handle):
         """
@@ -1459,7 +1498,7 @@ if hasattr(dll, 'GXImportConfigFile'):
         status = dll.GXImportConfigFile(handle_c, byref(file_path_c), verify_c)
         return status
 
-'''
+
 if hasattr(dll, 'GXReadRemoteDevicePort'):
     def gx_read_remote_device_port(handle, address, buff, size):
         """
@@ -1481,7 +1520,7 @@ if hasattr(dll, 'GXReadRemoteDevicePort'):
         size_c.value = size
 
         status = dll.GXReadRemoteDevicePort(handle_c, address_c, byref(buff), byref(size_c))
-        return status, size_c.value
+        return status, buff
 
 
 if hasattr(dll, 'GXWriteRemoteDevicePort'):
@@ -1504,10 +1543,13 @@ if hasattr(dll, 'GXWriteRemoteDevicePort'):
         size_c = c_uint()
         size_c.value = size
 
-        status = dll.GXWriteRemoteDevicePort(handle_c, address_c, byref(buff), byref(size_c))
+        buff_c = c_int()
+        buff_c.value = buff
+
+        status = dll.GXWriteRemoteDevicePort(handle_c, address_c, byref(buff_c), byref(size_c))
         return status, size_c.value
 
-
+'''
 if hasattr(dll, 'GXGigEIpConfiguration'):
     def gx_gige_ip_configuration(mac_address, ipconfig_flag, ip_address, subnet_mask, default_gateway, user_id):
         """
@@ -1550,6 +1592,22 @@ if hasattr(dll, 'GXGigEForceIp'):
         status = dll.GXGigEForceIp(mac_address_c, ip_address_c, subnet_mask_c, default_gate_way_c)
         return status
 '''
+
+if hasattr(dll, 'GXGigEResetDevice'):
+    def gx_gige_reset_device(mac_address, reset_device_mode):
+        """
+        :brief      Reconnection/Reset
+        :param      mac_address:        The MAC address of the device(str)
+        :param      reset_device_mode:  Reconnection mode, refer to GxResetDeviceModeEntry
+        :return:    status:             State return value, See detail in GxStatusList
+        """
+        mac_address_c = create_string_buffer(string_encoding(mac_address))
+        reset_device_mode_c = c_uint()
+        reset_device_mode_c.value = reset_device_mode
+
+        status = dll.GXGigEResetDevice(mac_address_c, reset_device_mode_c)
+        return status
+
 
 if hasattr(dll, 'GXSetAcqusitionBufferNumber'):
     def gx_set_acquisition_buffer_number(handle, buffer_num):
@@ -1706,8 +1764,16 @@ def string_decoding(string):
     :param      string
     :return:
     """
-    if sys.version_info.major == 3:
-        string = string.decode()
+    if sys.platform == 'linux2' or sys.platform == 'linux':
+        try:
+            string = string.decode()
+        except UnicodeDecodeError:
+            string = string.decode("gbk")
+    else:
+        try:
+            string = string.decode("gbk")
+        except UnicodeDecodeError:
+            string = string.decode()
     return string
 
 

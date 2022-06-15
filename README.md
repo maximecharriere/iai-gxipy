@@ -8,6 +8,8 @@ To found the official API files:
 
 DL link : https://www.get-cameras.com/customerdownloads
 
+For Python API user manual, see : [Python Interface Development User Manual.pdf](https://github.com/maximecharriere/iai-gxipy/blob/main/Python%20Interface%20Development%20User%20Manual.pdf)
+
 To ask questions and post issues, contact Daheng Imaging directly.  
 
 ---

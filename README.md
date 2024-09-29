@@ -8,7 +8,7 @@ Daheng Imaging develop the Galaxy SDK and also offer a Python API for using it. 
 
 ## Usage
 1. Install the Galaxy SDK for your operating system from the [Daheng Imaging Download Page](https://www.get-cameras.com/customerdownloads#Daheng%20SDK)
-2. Run `pip install gxipy`
+2. Run `pip install iai-gxipy`
 3. Read the Python API user manual : [Python Interface Development User Manual.pdf](https://github.com/maximecharriere/iai-gxipy/blob/main/Python%20Interface%20Development%20User%20Manual.pdf)
 
 ## Python API source files
